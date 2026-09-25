@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhotoVac QA Data Entry</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --blue-deep:#08355e; --blue:#0B5FA5; --blue-mid:#2E7FC1; --blue-pale:#e7f0f9;
+    --bg:#e8eef4; --panel:#ffffff;
+    --border:#c5d0dc; --text:#1a2734; --muted:#5a6a7c; --red:#c0392b; --green:#1e8e5a;
+    --neon:#00d4ff;
+    --shadow:0 1px 3px rgba(8,53,94,.07), 0 4px 12px rgba(8,53,94,.05);
+    --radius:8px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;line-height:1.4;-webkit-font-smoothing:antialiased;}
+  header{
+    background:var(--blue-deep);color:#fff;padding:10px 18px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+    border-bottom:3px solid var(--blue-mid);
+    position:sticky;top:0;z-index:50;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  header h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.03em;display:flex;align-items:center;gap:8px;}
+  header h1 .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--neon);box-shadow:0 0 8px var(--neon);}
+  header .status{font-size:11px;opacity:.9;font-family:var(--mono);}
+  .toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+  button{cursor:pointer;border:none;border-radius:6px;padding:7px 13px;font-size:12px;font-weight:600;font-family:inherit;transition:background .15s, transform .1s, box-shadow .15s;}
+  button:active{transform:scale(.97);}
+  .btn-primary{background:#fff;color:var(--blue-deep);}
+  .btn-primary:hover{background:var(--blue-pale);}
+  .btn-save{background:var(--green);color:#fff;padding:10px 22px;font-size:13.5px;box-shadow:0 2px 8px rgba(30,142,90,.3);}
+  .btn-save:hover{background:#176e46;}
+  .btn-save:disabled{background:#9db8ac;cursor:not-allowed;box-shadow:none;}
+  .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);}
+  .btn-ghost:hover{background:rgba(255,255,255,.1);}
+  .btn-small{background:var(--blue);color:#fff;padding:6px 12px;font-size:12px;border-radius:6px;}
+  .btn-small:hover{filter:brightness(1.08);}
+  .btn-na{background:var(--blue-pale);color:var(--blue-deep);padding:2px 7px;font-size:10px;border-radius:4px;margin-left:4px;font-weight:600;}
+  .btn-na:hover{background:var(--blue-mid);color:#fff;}
+  .app-shell{display:flex;min-height:calc(100vh - 52px);}
+  .sidebar{
+    width:200px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+    padding:12px 0;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;
+  }
+  .sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 8px;}
+  .sidebar-btn{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:transparent;color:var(--text);border:none;border-radius:8px;
+    padding:11px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
+    transition:background .12s, color .12s;
+  }
+  .sidebar-btn:hover{background:var(--blue-pale);}
+  .sidebar-btn.active{background:var(--blue-mid);color:#fff;}
+  .sidebar-btn .sb-icon{width:22px;text-align:center;font-size:15px;flex-shrink:0;}
+  .sidebar-btn .sb-badge{
+    margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;
+    padding:2px 6px;border-radius:10px;display:none;
+  }
+  .sidebar-btn.active .sb-badge{background:rgba(255,255,255,.25);}
+  .sidebar-btn.has-alert .sb-badge{display:inline;}
+  .sidebar-foot{padding:12px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:12px;line-height:1.4;}
+  main{flex:1;max-width:1100px;margin:0 auto;padding:14px 16px 56px;width:100%;}
+  .panel-view{display:none;}
+  .panel-view.active{display:block;}
+  html[data-theme="dark"] .sidebar,
+  html[data-theme="slate"] .sidebar,
+  html[data-theme="plum"] .sidebar{background:var(--panel);}
+  @media(max-width:720px){
+    .app-shell{flex-direction:column;}
+    .sidebar{width:100%;height:auto;position:relative;top:0;border-right:none;border-bottom:1px solid var(--border);}
+    .sidebar-nav{flex-direction:row;flex-wrap:wrap;}
+    .sidebar-btn{flex:1;min-width:120px;justify-content:center;}
+    .sidebar-foot{display:none;}
+  }
+  .banner{padding:9px 14px;border-radius:7px;font-size:12.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px;animation:bannerIn .25s ease;}
+  @keyframes bannerIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .banner.warn{background:#fff4e5;color:#8a5a00;border:1px solid #f2cd8a;}
+  .banner.ok{background:#e7f6ee;color:#176e46;border:1px solid #a9dcc0;}
+  .banner .banner-icon{font-size:15px;flex-shrink:0;}
+  .card{
+    background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--blue-mid);
+    border-radius:var(--radius);padding:0;margin-bottom:12px;
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .card-header{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:10px 14px 8px;cursor:pointer;user-select:none;
+    border-bottom:2px solid var(--blue-pale);
+  }
+  .card-header:hover{background:var(--blue-pale);}
+  .card h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue-deep);margin:0;font-weight:700;display:flex;align-items:center;gap:7px;}
+  .card h2 .sec-num{background:var(--blue-mid);color:#fff;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+  .card-toggle{font-size:11px;color:var(--muted);transition:transform .2s;}
+  .card.collapsed .card-toggle{transform:rotate(-90deg);}
+  .card.collapsed .card-body{display:none;}
+  .card-body{padding:12px 14px 14px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px 12px;}
+  .field label{display:flex;align-items:center;font-size:10.5px;color:var(--muted);margin-bottom:3px;font-weight:600;}
+  .field label .req{color:var(--red);margin-left:2px;font-weight:700;}
+  .field input, .field select{
+    width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:5px;
+    font-size:12.5px;background:#fff;font-family:var(--mono);transition:box-shadow .12s, border-color .12s;
+  }
+  .field input:disabled{background:#f0f3f6;color:#7a8798;}
+  .field input:focus, .field select:focus, #ocrWrap input:focus, #mappingType:focus{
+    outline:none;border-color:var(--neon);
+    box-shadow:0 0 0 2.5px rgba(0,212,255,.4), 0 0 10px rgba(0,212,255,.35);
+  }
+  .field.invalid input, .field.invalid select{border-color:var(--red);background:#fdecec;}
+  .defect-row{display:grid;grid-template-columns:48px 1fr 1.2fr 90px;gap:8px;align-items:end;margin-bottom:6px;}
+  .defect-row .field label{margin-bottom:2px;}
+  #ocrWrap{overflow-x:auto;}
+  #ocrWrap table{border-collapse:collapse;width:100%;font-size:12px;font-family:var(--mono);}
+  #ocrWrap th, #ocrWrap td{border:1px solid var(--border);padding:3px 4px;}
+  #ocrWrap th{background:var(--blue-pale);font-weight:700;color:var(--blue-deep);position:sticky;top:0;}
+  #ocrWrap input{width:100%;border:none;padding:4px;font-size:12px;font-family:var(--mono);background:transparent;}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35;}
+  .save-bar{
+    position:sticky;bottom:0;z-index:40;
+    background:linear-gradient(0deg,var(--bg) 70%,transparent);
+    padding:14px 0 8px;
+    display:flex;justify-content:center;gap:12px;align-items:center;flex-wrap:wrap;
+  }
+  .save-bar-inner{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    box-shadow:0 -2px 16px rgba(8,53,94,.1), var(--shadow);
+  }
+  .locked-msg{padding:48px 20px;text-align:center;color:var(--muted);max-width:520px;margin:40px auto;}
+  .locked-msg p{line-height:1.55;}
+  .locked-msg button{margin-top:14px;}
+  #computed{color:var(--blue-deep);font-weight:700;font-family:var(--mono);}
+  .kbd{display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:1px 5px;font-size:10px;font-family:var(--mono);margin-left:4px;}
+  .draft-badge{font-size:10px;color:var(--muted);font-family:var(--mono);}
+  .section-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .section-nav a{
+    font-size:11px;padding:4px 10px;border-radius:20px;text-decoration:none;
+    background:var(--panel);border:1px solid var(--border);color:var(--muted);font-weight:600;
+    transition:background .12s, color .12s;
+  }
+  .section-nav a:hover{background:var(--blue-pale);color:var(--blue-deep);border-color:var(--blue-mid);}
+
+  /* ---- Themes (same palette set) ---- */
+  html[data-theme="dark"]{
+    --blue-deep:#0a2a45; --blue:#2f7fc0; --blue-mid:#4a9bd6; --blue-pale:#16324a;
+    --bg:#0e141a; --panel:#1a222c;
+    --border:#2c3846; --text:#dde6ef; --muted:#93a6b8; --red:#ff7a68; --green:#3ecf94;
+    --neon:#00e5ff;
+    --shadow:0 1px 3px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+  html[data-theme="dark"] .field input, html[data-theme="dark"] .field select{ background:#1f2833; color:var(--text); }
+  html[data-theme="dark"] .field input:disabled{ background:#161d24; color:#6c7d8e; }
+  html[data-theme="dark"] .field.invalid input, html[data-theme="dark"] .field.invalid select{ background:#3a1f1c; border-color:var(--red); }
+  html[data-theme="dark"] .banner.warn{ background:#3a2f10; color:#f2c76a; border-color:#6b551f; }
+  html[data-theme="dark"] .banner.ok{ background:#123626; color:#5fe0ac; border-color:#1f5d43; }
+  html[data-theme="dark"] #ocrWrap input{ background:transparent; color:var(--text); }
+  html[data-theme="dark"] .locked-msg button{ background:var(--blue)!important; }
+  html[data-theme="dark"] .btn-na{ background:#16324a; color:#9ec8e8; }
+  html[data-theme="dark"] .btn-na:hover{ background:var(--blue-mid); color:#fff; }
+  html[data-theme="dark"] .section-nav a{ background:var(--panel); }
+  html[data-theme="dark"] .card-header:hover{ background:rgba(74,155,214,.12); }
+
+  html[data-theme="teal"]{
+    --blue-deep:#065f56; --blue:#0e9488; --blue-mid:#14b8a6; --blue-pale:#e6fbf7;
+    --bg:#e8f5f3; --panel:#ffffff; --border:#cfe8e3; --text:#10302c; --muted:#5b7a75;
+    --red:#c0392b; --green:#1e8e5a; --neon:#00e0c6;
+  }
+  html[data-theme="lavender"]{
+    --blue-deep:#4a2a7a; --blue:#7c5cbf; --blue-mid:#9b81d1; --blue-pale:#f1ecfb;
+    --bg:#f3f0fa; --panel:#ffffff; --border:#ddd3f0; --text:#2c2140; --muted:#6f6489;
+    --red:#c0392b; --green:#1e8e5a; --neon:#cc66ff;
+  }
+  html[data-theme="rose"]{
+    --blue-deep:#7a2a4a; --blue:#c1487a; --blue-mid:#d97ea3; --blue-pale:#fbecf1;
+    --bg:#faf0f3; --panel:#ffffff; --border:#f0d3de; --text:#402030; --muted:#8a6472;
+    --red:#b8382c; --green:#1e8e5a; --neon:#ff5ca8;
+  }
+  html[data-theme="amber"]{
+    --blue-deep:#7a4a08; --blue:#c17d1e; --blue-mid:#d99a3f; --blue-pale:#fdf1df;
+    --bg:#faf4ea; --panel:#ffffff; --border:#f0dcb8; --text:#402c10; --muted:#8a7250;
+    --red:#c0392b; --green:#1e8e5a; --neon:#ffb020;
+  }
+  html[data-theme="slate"]{
+    --blue-deep:#1c2227; --blue:#3a4750; --blue-mid:#57666f; --blue-pale:#2a333a;
+    --bg:#12161a; --panel:#1d2327; --border:#333c42; --text:#dfe4e7; --muted:#8b969d;
+    --red:#ff7a68; --green:#3ecf94; --neon:#7fd7ff;
+    --shadow:0 1px 3px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+  html[data-theme="slate"] .field input, html[data-theme="slate"] .field select{ background:#22292e; color:var(--text); }
+  html[data-theme="slate"] .field input:disabled{ background:#181d20; color:#66707a; }
+  html[data-theme="slate"] .field.invalid input, html[data-theme="slate"] .field.invalid select{ background:#3a2420; border-color:var(--red); }
+  html[data-theme="slate"] .banner.warn{ background:#3a3010; color:#f2c76a; border-color:#6b5a1f; }
+  html[data-theme="slate"] .banner.ok{ background:#0f3327; color:#5fe0ac; border-color:#1f5d43; }
+  html[data-theme="slate"] #ocrWrap input{ background:transparent; color:var(--text); }
+  html[data-theme="slate"] .locked-msg button{ background:var(--blue)!important; }
+  html[data-theme="slate"] .btn-na{ background:#2a333a; color:#a0b0ba; }
+  html[data-theme="slate"] .btn-na:hover{ background:var(--blue-mid); color:#fff; }
+  html[data-theme="slate"] .card-header:hover{ background:rgba(87,102,111,.2); }
+
+  html[data-theme="plum"]{
+    --blue-deep:#2a1440; --blue:#5b2f8a; --blue-mid:#7c4bb0; --blue-pale:#241a38;
+    --bg:#120a1e; --panel:#1f1533; --border:#3a2a52; --text:#e8ddf5; --muted:#a190c0;
+    --red:#ff7a90; --green:#4fe0a0; --neon:#d18fff;
+    --shadow:0 1px 3px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.3);
+  }
+  html[data-theme="plum"] .field input, html[data-theme="plum"] .field select{ background:#291d40; color:var(--text); }
+  html[data-theme="plum"] .field input:disabled{ background:#1c1430; color:#7a6c94; }
+  html[data-theme="plum"] .field.invalid input, html[data-theme="plum"] .field.invalid select{ background:#3d1f2e; border-color:var(--red); }
+  html[data-theme="plum"] .banner.warn{ background:#3a3010; color:#f2c76a; border-color:#6b5a1f; }
+  html[data-theme="plum"] .banner.ok{ background:#122e2a; color:#5fe0ac; border-color:#1f5d43; }
+  html[data-theme="plum"] #ocrWrap input{ background:transparent; color:var(--text); }
+  html[data-theme="plum"] .locked-msg button{ background:var(--blue)!important; }
+  html[data-theme="plum"] .btn-na{ background:#241a38; color:#c4b0e0; }
+  html[data-theme="plum"] .btn-na:hover{ background:var(--blue-mid); color:#fff; }
+  html[data-theme="plum"] .card-header:hover{ background:rgba(124,75,176,.15); }
+
+  html[data-theme="royalblue"]{
+    --blue-deep:#0a2472; --blue:#1e40af; --blue-mid:#3b5bdb; --blue-pale:#e8ecfd;
+    --bg:#eef0fa; --panel:#ffffff; --border:#d3d9f5; --text:#1a2140; --muted:#5a6491;
+    --red:#c0392b; --green:#1e8e5a; --neon:#4d79ff;
+  }
+  html[data-theme="green"]{
+    --blue-deep:#0b4a2c; --blue:#16794a; --blue-mid:#1fa868; --blue-pale:#e3f7ec;
+    --bg:#eaf7f0; --panel:#ffffff; --border:#c9ecd9; --text:#123322; --muted:#5b8a71;
+    --red:#c0392b; --green:#1e8e5a; --neon:#22e08a;
+  }
+  html[data-theme="pink"]{
+    --blue-deep:#7a0a4a; --blue:#d6198a; --blue-mid:#ec4bb0; --blue-pale:#fde8f4;
+    --bg:#faf0f6; --panel:#ffffff; --border:#f7cbe6; --text:#400828; --muted:#9c5b82;
+    --red:#c0392b; --green:#1e8e5a; --neon:#ff3fb0;
+  }
+  .theme-select{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:5px;padding:5px 8px;font-size:12px;font-family:inherit;}
+  .theme-select option{color:#222;background:#fff;}
+  .preview-tabs{display:flex;gap:6px;margin-bottom:10px;}
+  .preview-tab{background:var(--blue-pale);color:var(--blue-deep);border:1px solid var(--border);border-radius:6px 6px 0 0;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;}
+  .preview-tab.active{background:var(--blue-mid);color:#fff;border-color:var(--blue-mid);}
+  .preview-pane{border:1px solid var(--border);border-radius:0 8px 8px 8px;padding:12px;background:var(--panel);overflow-x:auto;max-height:360px;overflow-y:auto;}
+  .preview-pane table{border-collapse:collapse;width:100%;font-size:11.5px;font-family:var(--mono);}
+  .preview-pane th,.preview-pane td{border:1px solid var(--border);padding:4px 7px;text-align:left;}
+  .preview-pane th{background:var(--blue-pale);color:var(--blue-deep);font-weight:700;}
+  .preview-pane .pv-label{color:var(--muted);font-weight:600;width:28%;}
+  .preview-pane h4{margin:0 0 8px;font-size:12px;color:var(--blue-deep);}
+  .preview-pane .pv-block{margin-bottom:14px;}
+  .preview-pane .pv-block:last-child{margin-bottom:0;}
+  .preview-empty{color:var(--muted);font-size:12px;padding:8px 0;}
+  .preview-highlight{background:#fff9c4;}
+  html[data-theme="dark"] .preview-highlight,
+  html[data-theme="slate"] .preview-highlight,
+  html[data-theme="plum"] .preview-highlight{background:#4a4420;}
+
+  /* Loading overlay */
+  #loadingOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
+  #loadingOverlay.show{display:flex;}
+  .loading-box{
+    background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--blue-mid);
+    border-radius:12px;padding:24px 32px;display:flex;flex-direction:column;align-items:center;gap:14px;
+    min-width:240px;box-shadow:0 8px 32px rgba(0,0,0,.2);
+  }
+  .spinner{width:36px;height:36px;border-radius:50%;border:3.5px solid var(--border);border-top-color:var(--neon);animation:pv-spin .75s linear infinite;}
+  @keyframes pv-spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingText" style="font-size:13px;color:var(--text);font-weight:600;text-align:center;">Working...</div>
+  </div>
+</div>
+
+<header>
+  <h1><span class="logo-dot"></span> PhotoVac · QA Data Entry</h1>
+  <div class="toolbar">
+    <select class="theme-select" id="themeSelect" title="Theme">
+      <option value="light">Light Blue</option>
+      <option value="dark">Dark Navy</option>
+      <option value="teal">Teal</option>
+      <option value="lavender">Lavender</option>
+      <option value="rose">Rose</option>
+      <option value="amber">Amber</option>
+      <option value="royalblue">Royal Blue</option>
+      <option value="green">Green</option>
+      <option value="pink">Pink</option>
+      <option value="slate">Slate (dark)</option>
+      <option value="plum">Plum (dark)</option>
+    </select>
+    <span class="status" id="fileStatus">No database file connected</span>
+    <button class="btn-primary" id="btnOpen">Open Database</button>
+    <button class="btn-ghost" id="btnClear" style="display:none" title="Clear form fields">Clear</button>
+  </div>
+</header>
+
+<div id="lockedMsg" class="locked-msg">
+  <p style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:8px;">Connect your database to begin</p>
+  <p>Open your <strong>1_PhotoVac.xlsm</strong> (or .xlsx) file to start entering inspections.<br>
+  It must be a copy converted from the original .xlsb — this tool writes new rows straight back into that file.</p>
+  <p class="hint">Works in Chrome or Edge only (File System Access API). Your browser will ask for write access the first time.</p>
+  <p class="hint" id="draftNotice" style="display:none;margin-top:10px;color:var(--blue-deep);font-weight:600;">A draft from your last session was saved. Open the same database file to restore it.</p>
+  <button class="btn-primary" style="background:var(--blue);color:#fff;padding:10px 22px;font-size:13px" id="btnOpen2">Open Database File</button>
+</div>
+
+<div id="formWrap" class="app-shell" style="display:none">
+  <aside class="sidebar" id="appSidebar">
+    <nav class="sidebar-nav">
+      <button type="button" class="sidebar-btn active" data-panel="inspection">
+        <span class="sb-icon">📋</span> Inspection
+      </button>
+      <button type="button" class="sidebar-btn" data-panel="fa" id="navFA">
+        <span class="sb-icon">⚠</span> Failure Alert
+        <span class="sb-badge" id="faBadge">FA</span>
+      </button>
+      <button type="button" class="sidebar-btn" data-panel="reference">
+        <span class="sb-icon">📚</span> Reference
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      Switch panels anytime.<br>
+      Reference changes write into the open database file.
+    </div>
+  </aside>
+
+  <main>
+    <div id="banners"></div>
+
+    <!-- ===== PANEL: Inspection ===== -->
+    <div class="panel-view active" id="panelInspection">
+    <nav class="section-nav" id="sectionNav">
+      <a href="#secDetails">1. Details</a>
+      <a href="#secQty">2. Quantities</a>
+      <a href="#secDefects">3. Defects</a>
+      <a href="#secOcr">4. OCR</a>
+      <a href="#secPeople">5. Personnel</a>
+    </nav>
+
+    <div class="card" id="secDetails">
+      <div class="card-header" data-toggle>
+        <h2><span class="sec-num">1</span> Inspection Details</h2>
+        <span class="card-toggle">▼</span>
+      </div>
+      <div class="card-body">
+        <div class="grid">
+          <div class="field"><label>Work Week No.</label><input id="txtWeekNo" readonly></div>
+          <div class="field"><label>Inspection Date <span class="req">*</span></label><input type="date" id="txtDate"></div>
+          <div class="field"><label>Time Inspected (HHMM) <span class="req">*</span></label><input id="txtTimeInspected" placeholder="e.g. 1430H"></div>
+          <div class="field"><label>Feedback Time</label><input id="txtFeedbackTime" readonly></div>
+          <div class="field"><label>Area of Inspection <span class="req">*</span></label><select id="cmbArea"></select></div>
+          <div class="field"><label>Process Area <span class="req">*</span></label><select id="cmbProcess"></select></div>
+          <div class="field"><label>Checking Type <span class="req">*</span></label><select id="cmbTypeChecking"></select></div>
+          <div class="field"><label>Shift <span class="req">*</span></label><select id="cmbShift"></select></div>
+          <div class="field"><label>Project <span class="req">*</span></label><select id="cmbProject"></select></div>
+          <div class="field"><label>Model <span class="req">*</span></label><select id="cmbModel"></select></div>
+          <div class="field"><label>Wafer No. <span class="req">*</span></label><select id="cmbWaferNo"></select></div>
+          <div class="field"><label>Layer + Block + RB No.</label><input id="txtBlock" placeholder="N/A"></div>
+          <div class="field"><label>Row No.</label><input id="txtRow" placeholder="N/A"></div>
+          <div class="field"><label>Tray Type</label><select id="cmbTrayType"></select></div>
+          <div class="field"><label>Tray No. <span class="req">*</span></label><input id="txtTrayNo" placeholder="Tray No"></div>
+          <div class="field"><label>Unit No.</label><input id="txtUnitNo" placeholder="N/A"></div>
+          <div class="field"><label>Lens Magnification <span class="req">*</span></label><select id="cmbLensMag"></select></div>
+          <div class="field"><label>Channel <span class="req">*</span></label><select id="cmbChannel"></select></div>
+          <div class="field"><label>Bar Type <span class="req">*</span></label><select id="cmbBarType"></select></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="secQty">
+      <div class="card-header" data-toggle>
+        <h2><span class="sec-num">2</span> Quantities</h2>
+        <span class="card-toggle">▼</span>
+      </div>
+      <div class="card-body">
+        <div class="grid">
+          <div class="field"><label>Inspected Qty <span class="req">*</span></label><input id="txtInspectedQty" inputmode="numeric"></div>
+          <div class="field"><label>Reject Qty <span class="req">*</span></label><input id="txtRejectQty" inputmode="numeric"></div>
+          <div class="field"><label>Output Qty (auto)</label><input id="txtOutputQty" readonly></div>
+          <div class="field"><label>Rejection Rate (auto)</label><input id="txtRejectRate" readonly></div>
+          <div class="field"><label>No. of Defect Criteria</label><input id="txtDefectCriteriaCount" inputmode="numeric" value="0"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="secDefects" style="display:none">
+      <div class="card-header" data-toggle>
+        <h2><span class="sec-num">3</span> Defect Criteria</h2>
+        <span class="card-toggle">▼</span>
+      </div>
+      <div class="card-body">
+        <div id="defectRows"></div>
+        <p class="hint">Enter a quantity to open that many Slider/OCR No. boxes below for that column.</p>
+      </div>
+    </div>
+
+    <div class="card" id="ocrCard" style="display:none">
+      <div class="card-header" data-toggle>
+        <h2><span class="sec-num">4</span> Slider / OCR No. per Defect</h2>
+        <span class="card-toggle">▼</span>
+      </div>
+      <div class="card-body">
+        <div id="ocrWrap"></div>
+      </div>
+    </div>
+
+    <div class="card" id="secPeople">
+      <div class="card-header" data-toggle>
+        <h2><span class="sec-num">5</span> Personnel &amp; Remarks</h2>
+        <span class="card-toggle">▼</span>
+      </div>
+      <div class="card-body">
+        <div class="grid">
+          <div class="field"><label>Prod. Operator <span class="req">*</span></label><input id="txtProductionOperator"></div>
+          <div class="field"><label>Verified By (PE) <span class="req">*</span></label><input id="txtProductionPIC"></div>
+          <div class="field"><label>Process Engineer</label><select id="cmbPEngineer"></select></div>
+          <div class="field"><label>QA Inspector <span class="req">*</span></label><select id="cmbInspector"></select></div>
+          <div class="field"><label>QA Technician <span class="req">*</span></label><select id="cmbTechnician"></select></div>
+        </div>
+        <div class="field" style="margin-top:12px"><label>Remarks</label><input id="txtRemarks"></div>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <div class="save-bar-inner">
+        <span>Next Inspection No. <span id="computed">—</span> <span class="draft-badge" title="Highest in QALM for this Area + Date + Shift, +1">auto · per shift</span></span>
+        <span class="draft-badge" id="draftStatus"></span>
+        <button class="btn-save" id="btnSave" title="Ctrl+S / Cmd+S">Record Data <span class="kbd">⌘S</span></button>
+        <button class="btn-ghost" id="btnNewEntry" style="background:#556676;color:#fff;display:none" title="Clear only Inspected/Reject qty; refresh time; next Inspection No. Keeps all other fields.">Next similar</button>
+      </div>
+    </div>
+    </div><!-- /panelInspection -->
+
+    <!-- ===== PANEL: Failure Alert Preview ===== -->
+    <div class="panel-view" id="panelFA">
+      <div class="card" id="faCard">
+        <div class="card-header">
+          <h2><span class="sec-num">FA</span> Failure Alert &amp; Mapping Preview</h2>
+        </div>
+        <div class="card-body">
+          <p class="hint" id="faHint">Record an inspection first (with defect criteria), then review the preview below and click <strong>Alert QA</strong> to export the Excel draft. Do this before "New Entry".</p>
+          <div class="field" style="max-width:320px;margin-bottom:10px">
+            <label>Mapping Type</label>
+            <select id="mappingType" disabled>
+              <option value="MB">Rowbar Level (Middle Bar)</option>
+              <option value="LB">Rowbar Level (Long Bar)</option>
+              <option value="SLIDER">Slider Level</option>
+            </select>
+          </div>
+          <button class="btn-small" id="btnGenFA" style="padding:10px 18px;font-size:13px" disabled title="Record Data first">Alert QA — Export Excel</button>
+          <span class="hint" id="faStatus" style="display:block;margin-top:8px"></span>
+
+          <div id="faPreview" style="display:none;margin-top:14px">
+            <div class="preview-tabs">
+              <button type="button" class="preview-tab active" data-tab="fa">FA Preview</button>
+              <button type="button" class="preview-tab" data-tab="map">Mapping Preview</button>
+            </div>
+            <div id="previewFA" class="preview-pane"></div>
+            <div id="previewMap" class="preview-pane" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /panelFA -->
+
+    <!-- ===== PANEL: Reference editor ===== -->
+    <div class="panel-view" id="panelReference">
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="sec-num">R</span> Reference — Add data</h2>
+        </div>
+        <div class="card-body">
+          <p class="hint">Add a value to a REFERENCE column (dropdown lists). It is written into the open database file and dropdowns refresh immediately.</p>
+          <div class="grid" style="margin-top:10px">
+            <div class="field" style="grid-column:1/-1;max-width:320px">
+              <label>List to update</label>
+              <select id="refListKey">
+                <option value="shift">Shift</option>
+                <option value="area">Area of Inspection</option>
+                <option value="process">Process Area</option>
+                <option value="checking">Checking Type</option>
+                <option value="channel">Channel</option>
+                <option value="barType">Bar Type</option>
+                <option value="defectCode">Defect Code (+ Description)</option>
+                <option value="lensMag">Lens Magnification</option>
+                <option value="trayType">Tray Type</option>
+                <option value="inspector">QA Inspector</option>
+                <option value="technician">QA Technician</option>
+                <option value="project">Project</option>
+                <option value="model">Model</option>
+                <option value="waferNo">Wafer No.</option>
+                <option value="pEngineer">Process Engineer</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>New value</label>
+              <input id="refNewValue" placeholder="e.g. A99 or New Name">
+            </div>
+            <div class="field" id="refDescField" style="display:none">
+              <label>Defect Description</label>
+              <input id="refNewDesc" placeholder="Description for this defect code">
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="btn-small" id="btnRefAdd">Add to REFERENCE</button>
+            <span class="hint" id="refStatus"></span>
+          </div>
+          <div id="refCurrentList" style="margin-top:16px"></div>
+        </div>
+      </div>
+    </div><!-- /panelReference -->
+
+  </main>
+</div><!-- /formWrap -->
+
+<script>
+const REF_COLS = { // 1-indexed REFERENCE columns, mirroring LoadCombo calls in the VBA
+  shift:5, area:6, process:7, checking:8, channel:9, barType:10,
+  defectCode:11, defectDesc:12, lensMag:13, trayType:14, inspector:15, technician:16,
+  project:18, model:19, waferNo:20, pEngineer:21,
+  weekNo:2, weekStart:3, weekEnd:4, counterCell:'Q2'
+};
+const AREA_CODE_MAP = {
+  'PHOTOVAC':'PV', 'HW':'PQC1', 'PQC1':'PQC1', 'PQC2':'PQC2', 'WAFER 1':'W1', 'WAFER 2':'W2'
+};
+const REQUIRED_IDS = ['txtWeekNoRaw','cmbArea','txtDate','cmbProcess','txtTimeInspected','cmbTypeChecking',
+  'txtFeedbackTime','cmbShift','cmbProject','cmbModel','cmbBarType','cmbChannel','cmbWaferNo','txtTrayNo',
+  'txtRow','cmbLensMag','txtUnitNo','txtBlock','txtInspectedQty','txtRejectQty',
+  'txtProductionPIC','txtProductionOperator','cmbInspector','cmbTechnician'];
+
+const DRAFT_KEY = 'photovac-draft-v1';
+const PERSONNEL_KEY = 'photovac-personnel-v1';
+
+let state = { wb:null, handle:null, fileName:'', ext:'xlsx', refLists:null, defectMap:null, lastInspectionNo:null, rawBuffer:null, counterValue:0 };
+let draftTimer = null;
+
+const $ = id => document.getElementById(id);
+function showLoading(msg){ $('loadingText').textContent = msg||'Working...'; $('loadingOverlay').classList.add('show'); }
+function hideLoading(){ $('loadingOverlay').classList.remove('show'); }
+
+function XLSXrc(r,c){ return XLSX.utils.encode_cell({r,c}); }
+
+function parseLocalInputDate(str){
+  if(!str) return null;
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function colValues(aoa, colIdx1based){
+  const c = colIdx1based-1;
+  const out = [];
+  for(let r=1;r<aoa.length;r++){
+    const v = aoa[r] && aoa[r][c];
+    if(v !== undefined && v !== null && String(v).trim() !== '') out.push(String(v).trim());
+  }
+  return out;
+}
+
+function loadReferenceLists(){
+  const ws = state.wb.Sheets['REFERENCE'];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+  const lists = {};
+  for(const key of ['shift','area','process','checking','channel','barType','lensMag','trayType','inspector','technician','project','model','waferNo','pEngineer']){
+    lists[key] = [...new Set(colValues(aoa, REF_COLS[key]))];
+  }
+  const codes = colValues(aoa, REF_COLS.defectCode);
+  const descByCode = {};
+  for(let r=1;r<aoa.length;r++){
+    const code = (aoa[r][REF_COLS.defectCode-1]||'').toString().trim();
+    const desc = (aoa[r][REF_COLS.defectDesc-1]||'').toString().trim();
+    if(code) descByCode[code.toUpperCase()] = desc;
+  }
+  lists.defectCodes = [...new Set(codes)];
+  lists.descByCode = descByCode;
+  lists.weekRanges = [];
+  for(let r=1;r<aoa.length;r++){
+    const wk = aoa[r][REF_COLS.weekNo-1], s = aoa[r][REF_COLS.weekStart-1], e = aoa[r][REF_COLS.weekEnd-1];
+    if(wk && s && e) lists.weekRanges.push({wk, start:new Date(s), end:new Date(e)});
+  }
+  state.refLists = lists;
+}
+
+function buildDefectMap(){
+  const ws = state.wb.Sheets['QALM'];
+  const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+  const row2 = aoa[1] || [];
+  const map = {};
+  for(let c=31;c<row2.length;c++){
+    const code = (row2[c]||'').toString().trim();
+    if(code) map[code.toUpperCase()] = c;
+  }
+  state.defectMap = map;
+  state.qalmLastCol = row2.length ? row2.length-1 : 30;
+  // Collect existing Inspection Nos from column A (used to auto-assign next sequence)
+  const nos = [];
+  for(let r=0;r<aoa.length;r++){
+    const v = (aoa[r] && aoa[r][0] || '').toString().trim();
+    if(/^QUA-/i.test(v)) nos.push(v);
+  }
+  state.qalmInspNos = nos;
+}
+
+function fillSelect(id, arr, placeholder){
+  const el = $(id);
+  el.innerHTML = `<option value="">${placeholder||'Select'}</option>` + arr.map(v=>`<option>${v}</option>`).join('');
+}
+
+function populateForm(){
+  const L = state.refLists;
+  fillSelect('cmbShift', L.shift); fillSelect('cmbArea', L.area); fillSelect('cmbProcess', L.process);
+  fillSelect('cmbTypeChecking', L.checking); fillSelect('cmbChannel', L.channel); fillSelect('cmbBarType', L.barType);
+  fillSelect('cmbLensMag', L.lensMag); fillSelect('cmbTrayType', L.trayType); fillSelect('cmbInspector', L.inspector);
+  fillSelect('cmbTechnician', L.technician); fillSelect('cmbProject', L.project); fillSelect('cmbModel', L.model);
+  fillSelect('cmbWaferNo', L.waferNo); fillSelect('cmbPEngineer', L.pEngineer);
+
+  // Restore last-used personnel if available
+  try{
+    const p = JSON.parse(localStorage.getItem(PERSONNEL_KEY)||'{}');
+    if(p.operator) $('txtProductionOperator').value = p.operator;
+    if(p.pic) $('txtProductionPIC').value = p.pic;
+    if(p.pEngineer && [...$('cmbPEngineer').options].some(o=>o.value===p.pEngineer)) $('cmbPEngineer').value = p.pEngineer;
+    if(p.inspector && [...$('cmbInspector').options].some(o=>o.value===p.inspector)) $('cmbInspector').value = p.inspector;
+    if(p.technician && [...$('cmbTechnician').options].some(o=>o.value===p.technician)) $('cmbTechnician').value = p.technician;
+  }catch(e){}
+
+  const today = new Date();
+  $('txtDate').value = today.toISOString().slice(0,10);
+  const hh = String(today.getHours()).padStart(2,'0'), mm = String(today.getMinutes()).padStart(2,'0');
+  $('txtTimeInspected').value = hh+mm+'H';
+  updateWorkWeek(); updateFeedbackTime(); autoShift();
+  renderDefectRows(); renderOcrGrid();
+  updateComputedInspectionNo();
+  restoreDraft();
+}
+
+function updateWorkWeek(){
+  const d = parseLocalInputDate($('txtDate').value);
+  if(!d){ $('txtWeekNo').value=''; return; }
+  const match = (state.refLists.weekRanges||[]).find(w => d >= w.start && d <= w.end);
+  $('txtWeekNo').value = match ? match.wk : '';
+  $('txtWeekNo').dataset.raw = match ? match.wk : '';
+}
+
+function updateFeedbackTime(){
+  const raw = ($('txtTimeInspected').value||'').replace('H','').replace('h','');
+  if(raw.length===4){
+    const hh = parseInt(raw.slice(0,2),10), mm = parseInt(raw.slice(2,4),10);
+    if(!isNaN(hh) && !isNaN(mm)){
+      const d = new Date(); d.setHours(hh,mm+5,0,0);
+      $('txtFeedbackTime').value = String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0')+'H';
+    }
+  }
+}
+
+function autoShift(){
+  const now = new Date();
+  const mins = now.getHours()*60+now.getMinutes();
+  const isDay = (mins>=7*60+30 && mins<19*60+30);
+  // REFERENCE uses Dayshift / NightShift (also tolerate DAY / NIGHT)
+  const opts = [...$('cmbShift').options].map(o=>o.value).filter(Boolean);
+  const pick = opts.find(v => isDay ? /^day/i.test(v) : /^night/i.test(v));
+  if(pick) $('cmbShift').value = pick;
+}
+
+/** Auto Mapping Type from Bar Type: Middle→MB, Long→LB, else→Slider */
+function syncMappingTypeFromBar(){
+  const bar = ($('cmbBarType').value||'').toUpperCase().trim();
+  const el = $('mappingType');
+  if(!el) return;
+  if(bar==='MIDDLE BAR') el.value = 'MB';
+  else if(bar==='LONG BAR') el.value = 'LB';
+  else el.value = 'SLIDER';
+}
+
+function computeRejectRate(){
+  const insp = parseFloat($('txtInspectedQty').value)||0;
+  const rej = parseFloat($('txtRejectQty').value)||0;
+  const out = Math.max(insp-rej,0);
+  $('txtOutputQty').value = out.toFixed(0);
+  $('txtRejectRate').value = insp>0 ? ((rej/insp)*100).toFixed(2)+'%' : '0.00%';
+}
+
+// ---------- Draft auto-save ----------
+function collectDraft(){
+  const ids = ['txtDate','txtTimeInspected','cmbArea','cmbProcess','cmbTypeChecking','cmbShift',
+    'cmbProject','cmbModel','cmbWaferNo','txtBlock','txtRow','cmbTrayType','txtTrayNo','txtUnitNo',
+    'cmbLensMag','cmbChannel','cmbBarType','txtInspectedQty','txtRejectQty','txtDefectCriteriaCount',
+    'txtProductionOperator','txtProductionPIC','cmbPEngineer','cmbInspector','cmbTechnician','txtRemarks'];
+  const data = {};
+  for(const id of ids){ const el=$(id); if(el) data[id]=el.value; }
+  // defects
+  const n = parseInt($('txtDefectCriteriaCount').value,10)||0;
+  data.defects = [];
+  for(let i=1;i<=n;i++){
+    const code = document.querySelector(`.defCode[data-i="${i}"]`);
+    const qty = document.querySelector(`.defQty[data-i="${i}"]`);
+    data.defects.push({code: code?code.value:'', qty: qty?qty.value:''});
+  }
+  // ocr
+  data.ocr = {};
+  document.querySelectorAll('.ocr').forEach(inp=>{
+    data.ocr[`${inp.dataset.row}_${inp.dataset.col}`] = inp.value;
+  });
+  return data;
+}
+
+function saveDraft(){
+  if(!$('formWrap') || $('formWrap').style.display==='none') return;
+  try{
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
+    $('draftStatus').textContent = 'Draft saved';
+    setTimeout(()=>{ if($('draftStatus').textContent==='Draft saved') $('draftStatus').textContent=''; }, 2000);
+  }catch(e){}
+}
+
+function scheduleDraft(){
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 600);
+}
+
+function restoreDraft(){
+  try{
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    const skip = new Set(['txtDate','txtTimeInspected']); // keep fresh date/time by default
+    for(const [id,val] of Object.entries(data)){
+      if(id==='defects'||id==='ocr') continue;
+      if(skip.has(id)) continue;
+      const el = $(id);
+      if(el && val!==undefined && val!=='') el.value = val;
+    }
+    if(data.txtInspectedQty!==undefined) computeRejectRate();
+    if(data.txtDefectCriteriaCount){
+      renderDefectRows();
+      if(data.defects){
+        data.defects.forEach((d,idx)=>{
+          const i = idx+1;
+          const code = document.querySelector(`.defCode[data-i="${i}"]`);
+          const qty = document.querySelector(`.defQty[data-i="${i}"]`);
+          if(code && d.code){ code.value=d.code; code.dispatchEvent(new Event('change')); }
+          if(qty && d.qty) qty.value=d.qty;
+        });
+        renderOcrGrid();
+        if(data.ocr){
+          for(const [k,v] of Object.entries(data.ocr)){
+            const [r,c] = k.split('_');
+            const inp = document.querySelector(`.ocr[data-row="${r}"][data-col="${c}"]`);
+            if(inp) inp.value = v;
+          }
+        }
+      }
+    }
+    updateWorkWeek();
+    updateComputedInspectionNo();
+    $('draftStatus').textContent = 'Draft restored';
+    setTimeout(()=>{ if($('draftStatus').textContent==='Draft restored') $('draftStatus').textContent=''; }, 2500);
+  }catch(e){}
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+  $('draftStatus').textContent = '';
+}
+
+function savePersonnelMemory(){
+  try{
+    localStorage.setItem(PERSONNEL_KEY, JSON.stringify({
+      operator: $('txtProductionOperator').value,
+      pic: $('txtProductionPIC').value,
+      pEngineer: $('cmbPEngineer').value,
+      inspector: $('cmbInspector').value,
+      technician: $('cmbTechnician').value
+    }));
+  }catch(e){}
+}
+
+// ---------- Defect criteria + OCR grid ----------
+function renderDefectRows(){
+  const n = parseInt($('txtDefectCriteriaCount').value,10)||0;
+  const sec = $('secDefects');
+  if(sec) sec.style.display = n >= 1 ? 'block' : 'none';
+  // Section nav links for 3 / 4
+  document.querySelectorAll('#sectionNav a[href="#secDefects"], #sectionNav a[href="#secOcr"]').forEach(a=>{
+    a.style.display = n >= 1 ? '' : 'none';
+  });
+  const wrap = $('defectRows'); wrap.innerHTML = '';
+  if(n < 1){ renderOcrGrid(); return; }
+  for(let i=1;i<=n;i++){
+    const row = document.createElement('div'); row.className='defect-row';
+    row.innerHTML = `
+      <div class="field"><label>#${i}</label></div>
+      <div class="field"><label>Defect Code</label>
+        <select class="defCode" data-i="${i}"><option value="">Select</option>${state.refLists.defectCodes.map(c=>`<option>${c}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Description</label><input class="defDesc" data-i="${i}" readonly></div>
+      <div class="field"><label>Slider Qty</label><input class="defQty" data-i="${i}" inputmode="numeric"></div>`;
+    wrap.appendChild(row);
+  }
+  wrap.querySelectorAll('.defCode').forEach(sel=>{
+    sel.addEventListener('change', e=>{
+      const i = e.target.dataset.i;
+      const desc = state.refLists.descByCode[(e.target.value||'').toUpperCase()] || '';
+      wrap.querySelector(`.defDesc[data-i="${i}"]`).value = desc;
+      scheduleDraft();
+    });
+  });
+  wrap.querySelectorAll('.defQty').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      e.target.value = e.target.value.replace(/[^0-9]/g,'');
+      renderOcrGrid();
+      scheduleDraft();
+    });
+  });
+  renderOcrGrid();
+}
+
+function renderOcrGrid(){
+  const n = parseInt($('txtDefectCriteriaCount').value,10)||0;
+  const qtys = [...document.querySelectorAll('.defQty')].map(i=>parseInt(i.value,10)||0);
+  const maxQty = Math.max(0,...qtys);
+  const card = $('ocrCard'), wrap = $('ocrWrap');
+  if(n===0 || maxQty===0){ card.style.display='none'; wrap.innerHTML=''; return; }
+  card.style.display='block';
+  let html = '<table><tr><th>Slider / OCR No.</th>' + Array.from({length:n},(_,i)=>`<th>Code ${i+1}</th>`).join('') + '</tr>';
+  for(let r=1;r<=maxQty;r++){
+    html += `<tr><td>${r}</td>`;
+    for(let c=1;c<=n;c++){
+      html += `<td><input class="ocr" data-row="${r}" data-col="${c}"></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.ocr').forEach(inp=>inp.addEventListener('input', scheduleDraft));
+}
+
+// ---------- Inspection No. preview ----------
+function areaCode(){
+  const a = ($('cmbArea').value||'').toUpperCase().trim();
+  return AREA_CODE_MAP[a] || 'UNK';
+}
+function dateCode(){
+  const d = parseLocalInputDate($('txtDate').value) || new Date();
+  const yy = String(d.getFullYear()).slice(-2), mm=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return yy+mm+dd;
+}
+/** Shift code for Inspection No: DAY→D, NIGHT→N, else first letter. */
+function shiftCode(){
+  const s = ($('cmbShift').value || '').toUpperCase().trim();
+  if(s.startsWith('DAY')) return 'D';
+  if(s.startsWith('NIGHT')) return 'N';
+  if(s) return s.charAt(0);
+  return 'X';
+}
+/**
+ * Highest sequence already used in QALM for this Area + Date + Shift.
+ * Format: QUA-PQC1-250925-D-007  (D = Day, N = Night)
+ * Legacy rows without the shift letter are ignored so they don't collide.
+ */
+function maxSeqFor(areaC, dCode, sh){
+  const prefix = `QUA-${areaC}-${dCode}-${sh}-`.toUpperCase();
+  let max = 0;
+  for(const no of (state.qalmInspNos || [])){
+    const u = no.toUpperCase();
+    if(u.startsWith(prefix)){
+      const n = parseInt(u.slice(prefix.length), 10);
+      if(!isNaN(n) && n > max) max = n;
+    }
+  }
+  return max;
+}
+function nextSeq(){
+  return maxSeqFor(areaCode(), dateCode(), shiftCode()) + 1;
+}
+function buildInspectionNo(seq){
+  return `QUA-${areaCode()}-${dateCode()}-${shiftCode()}-${String(seq).padStart(3,'0')}`;
+}
+function updateComputedInspectionNo(){
+  $('computed').textContent = buildInspectionNo(nextSeq());
+}
+
+// ---------- Raw-XML helpers ----------
+async function getWorkbookSheetMap(zip){
+  const wbXml = await zip.file('xl/workbook.xml').async('string');
+  const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+  const wbDoc = new DOMParser().parseFromString(wbXml, 'application/xml');
+  const relsDoc = new DOMParser().parseFromString(relsXml, 'application/xml');
+  const RELNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const relMap = {};
+  Array.from(relsDoc.getElementsByTagName('Relationship')).forEach(r=>{
+    relMap[r.getAttribute('Id')] = r.getAttribute('Target');
+  });
+  const sheetMap = {};
+  Array.from(wbDoc.getElementsByTagName('sheet')).forEach(s=>{
+    const name = s.getAttribute('name');
+    const rid = s.getAttributeNS(RELNS,'id') || s.getAttribute('r:id');
+    let target = relMap[rid];
+    if(target){
+      if(!target.startsWith('xl/')) target = 'xl/'+target.replace(/^\/?/,'');
+      sheetMap[name] = target;
+    }
+  });
+  return sheetMap;
+}
+function colLetterToNum(letters){ let n=0; for(const ch of letters) n = n*26 + (ch.charCodeAt(0)-64); return n; }
+function numToColLetter(n){ let s=''; while(n>0){ const rem=(n-1)%26; s=String.fromCharCode(65+rem)+s; n=Math.floor((n-1)/26); } return s; }
+function splitAddr(addr){ const m = addr.match(/^([A-Z]+)(\d+)$/); return {col:m[1], row:parseInt(m[2],10), colNum:colLetterToNum(m[1])}; }
+function escapeXml(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+function looksNumeric(v){ if(v===null||v===undefined) return false; const s=String(v).trim(); return s!=='' && /^-?\d+(\.\d+)?$/.test(s); }
+
+function ensureCell(doc, sheetDataEl, addr){
+  const {col,row,colNum} = splitAddr(addr);
+  let rowEl = sheetDataEl.querySelector(`row[r="${row}"]`);
+  if(!rowEl){
+    rowEl = doc.createElementNS(sheetDataEl.namespaceURI, 'row');
+    rowEl.setAttribute('r', row);
+    let inserted=false;
+    for(const r of Array.from(sheetDataEl.querySelectorAll('row'))){
+      if(parseInt(r.getAttribute('r'),10) > row){ sheetDataEl.insertBefore(rowEl, r); inserted=true; break; }
+    }
+    if(!inserted) sheetDataEl.appendChild(rowEl);
+  }
+  let cellEl = rowEl.querySelector(`c[r="${addr}"]`);
+  if(!cellEl){
+    cellEl = doc.createElementNS(sheetDataEl.namespaceURI, 'c');
+    cellEl.setAttribute('r', addr);
+    let inserted=false;
+    for(const c of Array.from(rowEl.querySelectorAll('c'))){
+      if(colLetterToNum(splitAddr(c.getAttribute('r')).col) > colNum){ rowEl.insertBefore(cellEl, c); inserted=true; break; }
+    }
+    if(!inserted) rowEl.appendChild(cellEl);
+  }
+  return cellEl;
+}
+
+function setCellValue(doc, sheetDataEl, addr, value, opts){
+  const cellEl = ensureCell(doc, sheetDataEl, addr);
+  while(cellEl.firstChild) cellEl.removeChild(cellEl.firstChild);
+  if(opts && opts.styleOverride !== undefined) cellEl.setAttribute('s', String(opts.styleOverride));
+  if(looksNumeric(value)){
+    cellEl.removeAttribute('t');
+    const v = doc.createElementNS(cellEl.namespaceURI,'v'); v.textContent = String(value).trim();
+    cellEl.appendChild(v);
+  } else {
+    cellEl.setAttribute('t','inlineStr');
+    const is = doc.createElementNS(cellEl.namespaceURI,'is');
+    const t = doc.createElementNS(cellEl.namespaceURI,'t'); t.textContent = String(value ?? '');
+    is.appendChild(t); cellEl.appendChild(is);
+  }
+}
+
+function getMaxRowNum(sheetDataEl){
+  let max=0;
+  for(const row of Array.from(sheetDataEl.querySelectorAll('row'))){
+    const rn = parseInt(row.getAttribute('r'),10);
+    if(rn>max) max=rn;
+  }
+  return max;
+}
+
+function appendDataRow(doc, sheetDataEl, values){
+  const rows = Array.from(sheetDataEl.querySelectorAll('row'));
+  const lastRow = rows.length ? rows[rows.length-1] : null;
+  const rowNum = Math.max(getMaxRowNum(sheetDataEl)+1, 3);
+  const newRow = doc.createElementNS(sheetDataEl.namespaceURI, 'row');
+  newRow.setAttribute('r', String(rowNum));
+  values.forEach((val, idx) => {
+    if(val===undefined || val===null || val==='') return;
+    const colLetter = numToColLetter(idx+1);
+    const cellEl = doc.createElementNS(sheetDataEl.namespaceURI, 'c');
+    cellEl.setAttribute('r', colLetter+rowNum);
+    if(lastRow){
+      const srcCell = lastRow.querySelector(`c[r="${colLetter}${lastRow.getAttribute('r')}"]`);
+      if(srcCell && srcCell.getAttribute('s')) cellEl.setAttribute('s', srcCell.getAttribute('s'));
+    }
+    if(looksNumeric(val)){
+      const v = doc.createElementNS(cellEl.namespaceURI,'v'); v.textContent = String(val).trim();
+      cellEl.appendChild(v);
+    } else {
+      cellEl.setAttribute('t','inlineStr');
+      const is = doc.createElementNS(cellEl.namespaceURI,'is');
+      const t = doc.createElementNS(cellEl.namespaceURI,'t'); t.textContent = String(val);
+      is.appendChild(t); cellEl.appendChild(is);
+    }
+    newRow.appendChild(cellEl);
+  });
+  sheetDataEl.appendChild(newRow);
+  return rowNum;
+}
+
+async function copySheetDrawing(srcZip, outZip, sourceSheetPath, newSheetFileName, addedParts, contentTypesOverrides){
+  const parts = sourceSheetPath.split('/'); const fname = parts.pop();
+  const srcRelsPath = [...parts, '_rels', fname+'.rels'].join('/');
+  const srcRelsFile = srcZip.file(srcRelsPath);
+  if(!srcRelsFile) return;
+  const relsXml = await srcRelsFile.async('string');
+  outZip.file(`xl/worksheets/_rels/${newSheetFileName}.rels`, relsXml);
+  const relsDoc = new DOMParser().parseFromString(relsXml, 'application/xml');
+  for(const rel of Array.from(relsDoc.getElementsByTagName('Relationship'))){
+    if(!/\/drawing$/.test(rel.getAttribute('Type'))) continue;
+    const target = rel.getAttribute('Target');
+    const drawingPath = 'xl/' + target.replace(/^(\.\.\/)+/,'');
+    if(!addedParts.has(drawingPath) && srcZip.file(drawingPath)){
+      const drawingXml = await srcZip.file(drawingPath).async('string');
+      outZip.file(drawingPath, drawingXml);
+      addedParts.add(drawingPath);
+      contentTypesOverrides.push(`<Override PartName="/${drawingPath}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
+      const dParts = drawingPath.split('/'); const dName = dParts.pop();
+      const dRelsPath = [...dParts, '_rels', dName+'.rels'].join('/');
+      const dRelsFile = srcZip.file(dRelsPath);
+      if(dRelsFile){
+        const dRelsXml = await dRelsFile.async('string');
+        outZip.file(dRelsPath, dRelsXml);
+        addedParts.add(dRelsPath);
+        const dRelsDoc = new DOMParser().parseFromString(dRelsXml,'application/xml');
+        for(const mrel of Array.from(dRelsDoc.getElementsByTagName('Relationship'))){
+          const mTarget = mrel.getAttribute('Target');
+          const mediaPath = 'xl/' + mTarget.replace(/^(\.\.\/)+/,'');
+          if(!addedParts.has(mediaPath) && srcZip.file(mediaPath)){
+            const bin = await srcZip.file(mediaPath).async('uint8array');
+            outZip.file(mediaPath, bin);
+            addedParts.add(mediaPath);
+          }
+        }
+      }
+    }
+  }
+}
+
+// ---------- Validation ----------
+function normalizeNA(id){
+  const el = $(id);
+  if(el && (!el.value || String(el.value).trim()==='')) el.value = 'N/A';
+}
+function validate(){
+  // Auto-fill N/A for optional text fields left blank
+  normalizeNA('txtBlock');
+  normalizeNA('txtRow');
+  normalizeNA('txtUnitNo');
+
+  let ok = true;
+  document.querySelectorAll('.field').forEach(f=>f.classList.remove('invalid'));
+  const checks = [
+    ['cmbArea', $('cmbArea').value], ['txtDate', $('txtDate').value], ['cmbProcess', $('cmbProcess').value],
+    ['txtTimeInspected', $('txtTimeInspected').value], ['cmbTypeChecking', $('cmbTypeChecking').value],
+    ['txtFeedbackTime', $('txtFeedbackTime').value], ['cmbShift', $('cmbShift').value],
+    ['cmbProject', $('cmbProject').value], ['cmbModel', $('cmbModel').value], ['cmbBarType', $('cmbBarType').value],
+    ['cmbChannel', $('cmbChannel').value], ['cmbWaferNo', $('cmbWaferNo').value], ['txtTrayNo', $('txtTrayNo').value],
+    ['cmbLensMag', $('cmbLensMag').value],
+    ['txtInspectedQty', $('txtInspectedQty').value],
+    ['txtRejectQty', $('txtRejectQty').value], ['txtProductionPIC', $('txtProductionPIC').value],
+    ['txtProductionOperator', $('txtProductionOperator').value], ['cmbInspector', $('cmbInspector').value],
+    ['cmbTechnician', $('cmbTechnician').value]
+  ];
+  for(const [id,val] of checks){
+    if(!val || String(val).trim()===''){
+      ok = false;
+      const el = $(id); if(el) el.closest('.field').classList.add('invalid');
+    }
+  }
+  if(!ok){
+    showBanner('Please complete all required fields (marked *). Layer/Block, Row No., and Unit No. accept blank as N/A.', 'warn');
+    const first = document.querySelector('.field.invalid input, .field.invalid select');
+    if(first){ first.focus(); first.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  return ok;
+}
+
+function showBanner(msg, kind){
+  const icon = kind==='ok' ? '✓' : '⚠';
+  $('banners').innerHTML = `<div class="banner ${kind}"><span class="banner-icon">${icon}</span><span>${msg}</span></div>`;
+  if(kind==='ok') setTimeout(()=>{ const b=$('banners'); if(b.querySelector('.ok')) b.innerHTML=''; }, 8000);
+}
+
+// ---------- Save / write-back ----------
+async function saveEntry(){
+  if(!validate()) return;
+  $('btnSave').disabled = true;
+  showLoading('Saving inspection...');
+  try{
+    const areaC = areaCode();
+    if(areaC==='UNK'){ showBanner('Unrecognized Area of Inspection — cannot generate Inspection No.', 'warn'); $('btnSave').disabled=false; return; }
+    // Next sequence = highest already in QALM for this Area+Date+Shift, +1
+    const seq = nextSeq();
+    const inspNo = buildInspectionNo(seq);
+    const dateStr = (parseLocalInputDate($('txtDate').value) || new Date()).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});
+
+    const zip = await JSZip.loadAsync(state.rawBuffer);
+    const sheetMap = await getWorkbookSheetMap(zip);
+    const refPath = sheetMap['REFERENCE'], qalmPath = sheetMap['QALM'], popPath = sheetMap['Populated Record'];
+    if(!refPath || !qalmPath || !popPath){ throw new Error('Could not locate REFERENCE / QALM / Populated Record in the file.'); }
+
+    // Keep REFERENCE!Q2 in sync for any remaining VBA tools
+    const refXml = await zip.file(refPath).async('string');
+    const refDoc = new DOMParser().parseFromString(refXml, 'application/xml');
+    setCellValue(refDoc, refDoc.getElementsByTagName('sheetData')[0], 'Q2', seq);
+    zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
+
+    const qalmXml = await zip.file(qalmPath).async('string');
+    const qalmDoc = new DOMParser().parseFromString(qalmXml, 'application/xml');
+    const qalmSheetData = qalmDoc.getElementsByTagName('sheetData')[0];
+    const qalmVals = new Array(state.qalmLastCol+1).fill('');
+    const set = (col1based, v) => { qalmVals[col1based-1] = v; };
+    set(1, inspNo); set(2, $('txtWeekNo').value); set(3, dateStr); set(4, $('txtTimeInspected').value);
+    set(5, $('txtFeedbackTime').value); set(6, $('cmbArea').value); set(7, $('cmbProcess').value);
+    set(8, $('cmbTypeChecking').value); set(9, $('cmbShift').value); set(10, $('cmbProject').value);
+    set(11, $('cmbModel').value); set(12, $('cmbWaferNo').value); set(13, $('txtBlock').value);
+    set(14, $('txtRow').value); set(15, $('cmbTrayType').value); set(16, $('txtTrayNo').value);
+    set(17, $('txtUnitNo').value); set(18, $('cmbLensMag').value); set(19, $('cmbChannel').value);
+    set(20, $('cmbBarType').value); set(21, $('txtInspectedQty').value); set(22, $('txtOutputQty').value);
+    set(23, $('txtRejectQty').value); set(24, $('txtRejectRate').value);
+    set(25, $('txtDefectCriteriaCount').value); set(26, $('txtProductionOperator').value);
+    set(27, $('txtProductionPIC').value); set(28, $('cmbPEngineer').value); set(29, $('cmbInspector').value);
+    set(30, $('cmbTechnician').value); set(31, $('txtRemarks').value);
+
+    const n = parseInt($('txtDefectCriteriaCount').value,10)||0;
+    const defectEntries = [];
+    for(let i=1;i<=n;i++){
+      const code = (document.querySelector(`.defCode[data-i="${i}"]`).value||'').trim();
+      const qty = parseInt(document.querySelector(`.defQty[data-i="${i}"]`).value,10)||0;
+      if(code && qty>0){
+        defectEntries.push({i, code, qty});
+        const colIdx0 = state.defectMap[code.toUpperCase()];
+        if(colIdx0 !== undefined) qalmVals[colIdx0] = qty;
+      }
+    }
+    appendDataRow(qalmDoc, qalmSheetData, qalmVals);
+    zip.file(qalmPath, new XMLSerializer().serializeToString(qalmDoc));
+
+    const popXml = await zip.file(popPath).async('string');
+    const popDoc = new DOMParser().parseFromString(popXml, 'application/xml');
+    const popSheetData = popDoc.getElementsByTagName('sheetData')[0];
+    const barType = ($('cmbBarType').value||'').toUpperCase().trim();
+    let totalSlider = 0;
+    if(barType==='MIDDLE BAR') totalSlider = 75;
+    else if(barType==='LONG BAR') totalSlider = 90;
+    else totalSlider = parseInt($('txtInspectedQty').value,10)||0;
+
+    const baseCols = () => ([
+      inspNo, $('txtWeekNo').value, dateStr, $('txtTimeInspected').value, $('cmbArea').value,
+      $('cmbProcess').value, $('cmbTypeChecking').value, $('cmbShift').value, $('cmbProject').value,
+      $('cmbModel').value, $('cmbWaferNo').value, $('txtBlock').value, $('txtRow').value,
+      $('cmbTrayType').value, $('txtTrayNo').value, $('txtUnitNo').value, $('cmbChannel').value,
+      $('cmbBarType').value, $('txtProductionPIC').value, $('cmbPEngineer').value,
+      $('cmbInspector').value, $('cmbTechnician').value
+    ]);
+
+    const popRows = [];
+    if(barType==='N/A' || (barType!=='MIDDLE BAR' && barType!=='LONG BAR')){
+      const used = new Set();
+      for(const d of defectEntries){
+        for(let r=1;r<=d.qty;r++){
+          const ocrInput = document.querySelector(`.ocr[data-row="${r}"][data-col="${d.i}"]`);
+          const ocrVal = ocrInput ? ocrInput.value.trim() : '';
+          if(ocrVal && !used.has(ocrVal)){ popRows.push([...baseCols(), ocrVal, d.code]); used.add(ocrVal); }
+        }
+      }
+      for(let i=used.size+1;i<=totalSlider;i++) popRows.push([...baseCols(), '-', 'OK']);
+    } else {
+      const resultMap = {};
+      for(let s=1;s<=totalSlider;s++) resultMap[s]='OK';
+      for(const d of defectEntries){
+        for(let r=1;r<=d.qty;r++){
+          const ocrInput = document.querySelector(`.ocr[data-row="${r}"][data-col="${d.i}"]`);
+          const ocrVal = ocrInput ? ocrInput.value.trim() : '';
+          const num = parseInt(ocrVal,10);
+          if(!isNaN(num) && num>=1 && num<=totalSlider) resultMap[num] = d.code;
+        }
+      }
+      for(let s=1;s<=totalSlider;s++) popRows.push([...baseCols(), String(s), resultMap[s]]);
+    }
+    for(const rowVals of popRows) appendDataRow(popDoc, popSheetData, rowVals);
+    zip.file(popPath, new XMLSerializer().serializeToString(popDoc));
+
+    const out = await zip.generateAsync({type:'array'});
+    const writable = await state.handle.createWritable();
+    await writable.write(out);
+    await writable.close();
+    state.rawBuffer = out;
+    // Track this Inspection No so the next one increments correctly without re-reading the whole file
+    if(!state.qalmInspNos) state.qalmInspNos = [];
+    state.qalmInspNos.push(inspNo);
+    state.counterValue = seq;
+
+    state.lastInspectionNo = inspNo;
+    savePersonnelMemory();
+    clearDraft();
+    showBanner(`Saved ${inspNo} — ${totalSlider} slider record(s) written. If this inspection has defects, use <strong>Alert QA</strong> below to generate the FA &amp; Mapping draft before New Entry.`, 'ok');
+    $('mappingType').disabled = false;
+    $('btnGenFA').disabled = false;
+    $('btnGenFA').removeAttribute('title');
+    syncMappingTypeFromBar();
+    const hasDefects = (parseInt($('txtDefectCriteriaCount').value,10)||0) > 0
+      && [...document.querySelectorAll('.defCode')].some(s=>s.value);
+    if(hasDefects){
+      $('faHint').innerHTML = '<strong>Defects recorded — FA is required</strong> unless instructed otherwise. Review the <strong>FA / Mapping preview</strong> below, confirm Mapping Type, then click <strong>Alert QA — Export Excel</strong>. Then use <strong>Next similar</strong> for the next unit (keeps setup).';
+    } else {
+      $('faHint').innerHTML = 'No defect criteria on this inspection. Alert QA is optional. When ready, use <strong>Next similar</strong> (keeps area/project/setup) or Clear for a full reset.';
+    }
+    $('faStatus').textContent = '';
+    $('btnNewEntry').style.display = 'inline-block';
+    showFAPreview();
+    switchPanel('fa');
+    hideLoading();
+    return;
+  } catch(err){
+    console.error(err);
+    showBanner('Error while saving: '+err.message, 'warn');
+  }
+  hideLoading();
+  $('btnSave').disabled = false;
+}
+
+/**
+ * clearAll=true  → full Clear (header Clear button): wipe quantities, defects, unit fields
+ * clearAll=false → Next similar: keep area/project/model/personnel/defect codes & inspected qty;
+ *                  only clear unit-specific fields (Unit No, OCR values, reject qty, remarks)
+ */
+function resetForm(clearAll){
+  const now = new Date();
+  $('txtTimeInspected').value = String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+'H';
+  updateFeedbackTime();
+  autoShift();
+
+  if(clearAll){
+    // Full clear
+    $('txtTrayNo').value='';
+    $('txtUnitNo').value='';
+    $('txtBlock').value='';
+    $('txtInspectedQty').value='';
+    $('txtRejectQty').value='';
+    $('txtOutputQty').value='';
+    $('txtRejectRate').value='0.00%';
+    $('txtDefectCriteriaCount').value='0';
+    $('txtRemarks').value='';
+    renderDefectRows();
+  } else {
+    // Next similar — only clear inspected/reject qty; time already refreshed above; new insp no. via updateComputedInspectionNo
+    $('txtInspectedQty').value='';
+    $('txtRejectQty').value='';
+    $('txtOutputQty').value='';
+    $('txtRejectRate').value='0.00%';
+    showBanner('Next similar ready — enter Inspected / Reject qty (change any other field if needed), then Record Data. All other fields kept.', 'ok');
+  }
+
+  document.querySelectorAll('.field').forEach(f=>f.classList.remove('invalid'));
+  state.lastInspectionNo = null;
+  $('mappingType').disabled = true;
+  $('btnGenFA').disabled = true;
+  $('btnGenFA').title = 'Record Data first';
+  $('faHint').innerHTML = 'Record an inspection first (with defect criteria), then review the preview below and click <strong>Alert QA</strong> to export the Excel draft. Do this before Next similar.';
+  $('faStatus').textContent = '';
+  hideFAPreview();
+  $('btnNewEntry').style.display = 'none';
+  $('btnSave').disabled = false;
+  if(clearAll) $('banners').innerHTML = '';
+  clearDraft();
+  updateComputedInspectionNo();
+  switchPanel('inspection');
+}
+
+// ---------- FA + Mapping in-page preview ----------
+function collectFaEntries(){
+  const validCount = parseInt($('txtDefectCriteriaCount').value,10)||0;
+  const faEntries = [];
+  for(let i=1;i<=validCount;i++){
+    const codeSel = document.querySelector(`.defCode[data-i="${i}"]`);
+    const qtyInp = document.querySelector(`.defQty[data-i="${i}"]`);
+    const descInp = document.querySelector(`.defDesc[data-i="${i}"]`);
+    const code = (codeSel && codeSel.value || '').trim();
+    let qty = parseInt(qtyInp && qtyInp.value,10)||0;
+    if(!code) continue;
+    if(qty<=0) qty = 1;
+    faEntries.push({i, code, qty, desc: descInp ? descInp.value : ''});
+  }
+  return faEntries;
+}
+
+function renderFAPreview(){
+  const wrap = $('previewFA');
+  const inspNo = state.lastInspectionNo || '(not recorded yet)';
+  const faEntries = collectFaEntries();
+  if(faEntries.length===0){
+    wrap.innerHTML = '<p class="preview-empty">No defect codes selected — FA sheets will be empty.</p>';
+    return;
+  }
+  const barU = ($('cmbBarType').value||'').toUpperCase().trim();
+  const inspQ = parseInt($('txtInspectedQty').value,10)||0;
+  const totalDef = faEntries.reduce((s,e)=>s+e.qty,0);
+  const totalSlider = barU==='MIDDLE BAR' ? 75 : barU==='LONG BAR' ? 90 : inspQ;
+  const headerRows = [
+    ['FA No.', 'FA'+inspNo],
+    ['Work Week', $('txtWeekNo').value],
+    ['Date', $('txtDate').value],
+    ['Time Inspected', $('txtTimeInspected').value],
+    ['Feedback Time', $('txtFeedbackTime').value],
+    ['Area', $('cmbArea').value],
+    ['Process', $('cmbProcess').value],
+    ['Project', $('cmbProject').value],
+    ['Model', $('cmbModel').value],
+    ['Wafer No.', $('cmbWaferNo').value],
+    ['Layer+Block+RB', $('txtBlock').value],
+    ['Bar Type', $('cmbBarType').value],
+    ['Channel', $('cmbChannel').value],
+    ['Lens Mag', $('cmbLensMag').value],
+    ['Tray Type / No.', ($('cmbTrayType').value||'')+' / '+($('txtTrayNo').value||'')],
+    ['Unit No.', $('txtUnitNo').value],
+    ['Middle Bar (Qty)', barU==='MIDDLE BAR' ? String(totalSlider) : '0'],
+    ['Long Bar (Qty)', barU==='LONG BAR' ? String(totalSlider) : '0'],
+    ['Total Slider Quantity', String(totalSlider)],
+    ['Total Defected Slider', String(totalDef)],
+    ['Total Rejection Rate', $('txtRejectRate').value],
+    ['Operator', $('txtProductionOperator').value],
+    ['Verified By (PE)', $('txtProductionPIC').value],
+    ['Process Engineer', $('cmbPEngineer').value],
+    ['QA Inspector', $('cmbInspector').value],
+    ['QA Technician', $('cmbTechnician').value],
+    ['Shift', $('cmbShift').value],
+    ['Remarks', $('txtRemarks').value]
+  ];
+  let html = '';
+  faEntries.forEach((entry, idx)=>{
+    html += `<div class="pv-block"><h4>FA sheet ${idx+1}: ${escapeHtml(entry.code)}</h4>`;
+    html += '<table><tbody>';
+    for(const [lab,val] of headerRows){
+      html += `<tr><td class="pv-label">${escapeHtml(lab)}</td><td>${escapeHtml(val)}</td></tr>`;
+    }
+    html += `<tr><td class="pv-label">Defect Code</td><td><strong>${escapeHtml(entry.code)}</strong></td></tr>`;
+    html += `<tr><td class="pv-label">Description</td><td>${escapeHtml(entry.desc)}</td></tr>`;
+    html += `<tr><td class="pv-label">Qty</td><td>${entry.qty}</td></tr>`;
+    html += '</tbody></table></div>';
+  });
+  wrap.innerHTML = html;
+}
+
+function renderMapPreview(){
+  const wrap = $('previewMap');
+  const mapType = $('mappingType').value;
+  const faEntries = collectFaEntries();
+  const typeLabel = mapType==='MB' ? 'Rowbar Level (Middle Bar)' : mapType==='LB' ? 'Rowbar Level (Long Bar)' : 'Slider Level';
+  if(faEntries.length===0){
+    wrap.innerHTML = '<p class="preview-empty">No defect codes — mapping rows will be empty.</p>';
+    return;
+  }
+  let html = `<h4>Mapping — ${escapeHtml(typeLabel)}</h4>`;
+  html += `<p class="hint" style="margin:0 0 8px">Wafer+Block: <strong>${escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))}</strong>`;
+  if(mapType==='SLIDER'){
+    html += ` &nbsp;·&nbsp; Tray No: <strong>${escapeHtml($('txtTrayNo').value||'')}</strong>`;
+    html += ` &nbsp;·&nbsp; Output Qty: <strong>${escapeHtml($('txtOutputQty').value||'')}</strong>`;
+    html += `<br><span style="color:var(--muted)">Only defected OCR Nos. · Yellow Row/Col cells filled manually after export.</span>`;
+  } else {
+    html += `<br><span style="color:var(--muted)">Export writes the list below <strong>and</strong> marks each slider number on the ${mapType==='MB'?'1–75':'1–90'} grid.</span>`;
+  }
+  html += '</p>';
+  html += '<table><thead><tr><th>#</th><th>Defect Code</th><th>OCR / Slider No.</th>';
+  if(mapType==='SLIDER') html += '<th class="preview-highlight">Row No.</th><th class="preview-highlight">Col No.</th>';
+  html += '</tr></thead><tbody>';
+  let r = 1;
+  for(const entry of faEntries){
+    for(let ocrRow=1; ocrRow<=entry.qty; ocrRow++){
+      const inp = document.querySelector(`.ocr[data-row="${ocrRow}"][data-col="${entry.i}"]`);
+      const val = inp ? inp.value.trim() : '';
+      if(!val) continue;
+      html += `<tr><td>${r}</td><td>${escapeHtml(entry.code)}</td><td>${escapeHtml(val)}</td>`;
+      if(mapType==='SLIDER') html += '<td class="preview-highlight"></td><td class="preview-highlight"></td>';
+      html += '</tr>';
+      r++;
+    }
+  }
+  if(r===1) html += '<tr><td colspan="5" class="preview-empty">No OCR / Slider numbers entered yet.</td></tr>';
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showFAPreview(){
+  $('faPreview').style.display = 'block';
+  renderFAPreview();
+  renderMapPreview();
+  const nav = $('navFA');
+  if(nav) nav.classList.add('has-alert');
+}
+
+function hideFAPreview(){
+  $('faPreview').style.display = 'none';
+  $('previewFA').innerHTML = '';
+  $('previewMap').innerHTML = '';
+  const nav = $('navFA');
+  if(nav) nav.classList.remove('has-alert');
+}
+
+// ---------- Sidebar panels ----------
+function switchPanel(name){
+  document.querySelectorAll('.panel-view').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active'));
+  const panel = document.getElementById(name==='inspection'?'panelInspection':name==='fa'?'panelFA':'panelReference');
+  const btn = document.querySelector(`.sidebar-btn[data-panel="${name}"]`);
+  if(panel) panel.classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='fa' && state.lastInspectionNo){ renderFAPreview(); renderMapPreview(); }
+  if(name==='reference') refreshRefCurrentList();
+}
+
+// ---------- Reference add ----------
+const REF_LIST_META = {
+  shift:{col:5, label:'Shift'},
+  area:{col:6, label:'Area'},
+  process:{col:7, label:'Process'},
+  checking:{col:8, label:'Checking Type'},
+  channel:{col:9, label:'Channel'},
+  barType:{col:10, label:'Bar Type'},
+  defectCode:{col:11, label:'Defect Code', descCol:12},
+  lensMag:{col:13, label:'Lens Mag'},
+  trayType:{col:14, label:'Tray Type'},
+  inspector:{col:15, label:'QA Inspector'},
+  technician:{col:16, label:'QA Technician'},
+  project:{col:18, label:'Project'},
+  model:{col:19, label:'Model'},
+  waferNo:{col:20, label:'Wafer No.'},
+  pEngineer:{col:21, label:'Process Engineer'}
+};
+
+function refreshRefCurrentList(){
+  const key = $('refListKey').value;
+  const meta = REF_LIST_META[key];
+  const wrap = $('refCurrentList');
+  if(!state.refLists || !meta){ wrap.innerHTML=''; return; }
+  let items = [];
+  if(key==='defectCode') items = state.refLists.defectCodes || [];
+  else items = state.refLists[key] || [];
+  let html = `<h4 style="margin:0 0 8px;font-size:12px;color:var(--blue-deep)">Current ${escapeHtml(meta.label)} (${items.length})</h4>`;
+  html += '<div style="display:flex;flex-wrap:wrap;gap:4px;max-height:220px;overflow-y:auto">';
+  items.forEach(v=>{
+    html += `<span style="background:var(--blue-pale);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;font-family:var(--mono)">${escapeHtml(v)}</span>`;
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+  $('refDescField').style.display = key==='defectCode' ? 'block' : 'none';
+}
+
+async function addToReference(){
+  if(!state.handle || !state.rawBuffer){ $('refStatus').textContent = 'Open a database file first.'; return; }
+  const key = $('refListKey').value;
+  const meta = REF_LIST_META[key];
+  const val = ($('refNewValue').value||'').trim();
+  if(!val){ $('refStatus').textContent = 'Enter a value.'; return; }
+  if(key==='defectCode'){
+    const existing = (state.refLists.defectCodes||[]).map(c=>c.toUpperCase());
+    if(existing.includes(val.toUpperCase())){ $('refStatus').textContent = 'Defect code already exists.'; return; }
+  } else {
+    const existing = (state.refLists[key]||[]).map(c=>String(c).toUpperCase());
+    if(existing.includes(val.toUpperCase())){ $('refStatus').textContent = 'Value already exists.'; return; }
+  }
+  const desc = key==='defectCode' ? ($('refNewDesc').value||'').trim() : '';
+  $('refStatus').textContent = 'Writing...';
+  showLoading('Updating REFERENCE...');
+  try{
+    const zip = await JSZip.loadAsync(state.rawBuffer);
+    const sheetMap = await getWorkbookSheetMap(zip);
+    const refPath = sheetMap['REFERENCE'];
+    if(!refPath) throw new Error('REFERENCE sheet not found.');
+    const refXml = await zip.file(refPath).async('string');
+    const refDoc = new DOMParser().parseFromString(refXml, 'application/xml');
+    const sheetData = refDoc.getElementsByTagName('sheetData')[0];
+    // Find next empty row in that column (scan existing rows)
+    let maxRow = 1;
+    const colLetter = numToColLetter(meta.col);
+    for(const cell of Array.from(sheetData.querySelectorAll(`c[r^="${colLetter}"]`))){
+      const addr = cell.getAttribute('r')||'';
+      const m = addr.match(/^[A-Z]+(\d+)$/);
+      if(m) maxRow = Math.max(maxRow, parseInt(m[1],10));
+    }
+    const newRow = maxRow + 1;
+    setCellValue(refDoc, sheetData, colLetter+newRow, val);
+    if(key==='defectCode' && meta.descCol){
+      setCellValue(refDoc, sheetData, numToColLetter(meta.descCol)+newRow, desc);
+    }
+    zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
+    const out = await zip.generateAsync({type:'array'});
+    const writable = await state.handle.createWritable();
+    await writable.write(out);
+    await writable.close();
+    state.rawBuffer = out;
+    // Refresh in-memory lists + form dropdowns
+    state.wb = XLSX.read(out, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
+    loadReferenceLists();
+    // Re-fill selects without wiping current form choices
+    const keep = {};
+    ['cmbShift','cmbArea','cmbProcess','cmbTypeChecking','cmbChannel','cmbBarType','cmbLensMag','cmbTrayType',
+     'cmbInspector','cmbTechnician','cmbProject','cmbModel','cmbWaferNo','cmbPEngineer'].forEach(id=>{
+      const el=$(id); if(el) keep[id]=el.value;
+    });
+    const L = state.refLists;
+    fillSelect('cmbShift', L.shift); fillSelect('cmbArea', L.area); fillSelect('cmbProcess', L.process);
+    fillSelect('cmbTypeChecking', L.checking); fillSelect('cmbChannel', L.channel); fillSelect('cmbBarType', L.barType);
+    fillSelect('cmbLensMag', L.lensMag); fillSelect('cmbTrayType', L.trayType); fillSelect('cmbInspector', L.inspector);
+    fillSelect('cmbTechnician', L.technician); fillSelect('cmbProject', L.project); fillSelect('cmbModel', L.model);
+    fillSelect('cmbWaferNo', L.waferNo); fillSelect('cmbPEngineer', L.pEngineer);
+    for(const [id,v] of Object.entries(keep)){ if(v && $(id)) $(id).value = v; }
+    // Refresh defect code dropdowns on screen
+    document.querySelectorAll('.defCode').forEach(sel=>{
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">Select</option>${L.defectCodes.map(c=>`<option>${c}</option>`).join('')}`;
+      if(cur) sel.value = cur;
+    });
+    $('refNewValue').value = '';
+    $('refNewDesc').value = '';
+    refreshRefCurrentList();
+    $('refStatus').textContent = `Added "${val}" to ${meta.label}.`;
+  }catch(err){
+    console.error(err);
+    $('refStatus').textContent = 'Error: '+err.message;
+  }
+  hideLoading();
+}
+
+// ---------- FA + Mapping draft ----------
+function safeSheetName(s){
+  s = (s||'').trim();
+  if(!s) s = 'SHEET';
+  if(s.length>31) s = s.slice(0,31);
+  return s.replace(/[\/\\:*?\[\]]/g,'_');
+}
+function cleanFileName(s){
+  return (s||'').trim().replace(/[\/\\:*?"<>|]/g,'_');
+}
+
+/** Find a cell whose text matches regex and write value into the next non-empty-looking data cell to its right (or +2 cols). */
+function fillBesideLabel(doc, sheetData, labelRe, value){
+  if(value===undefined || value===null || value==='') return;
+  for(const cell of Array.from(sheetData.querySelectorAll('c'))){
+    const addr = cell.getAttribute('r');
+    if(!addr) continue;
+    let text = '';
+    const tNodes = cell.getElementsByTagName('t');
+    if(tNodes.length) text = tNodes[0].textContent || '';
+    else {
+      const v = cell.getElementsByTagName('v')[0];
+      if(v) text = v.textContent || '';
+    }
+    if(!labelRe.test(String(text))) continue;
+    const m = addr.match(/^([A-Z]+)(\d+)$/);
+    if(!m) continue;
+    const colNum = colLetterToNum(m[1]);
+    const row = m[2];
+    // Prefer two columns to the right (label | : | value pattern)
+    setCellValue(doc, sheetData, numToColLetter(colNum+2)+row, value);
+    return;
+  }
+}
+
+async function generateFAMapping(){
+  if(!state.lastInspectionNo){ $('faStatus').textContent = 'Record Data first.'; return; }
+  const validCount = parseInt($('txtDefectCriteriaCount').value,10)||0;
+  if(validCount<=0){ $('faStatus').textContent = 'No defect criteria on screen.'; return; }
+  const mapType = $('mappingType').value;
+  const templateName = mapType==='MB' ? 'Mapping Rowbar Level MB' : mapType==='LB' ? 'Mapping Rowbar Level LB' : 'Mapping Slider Level';
+  $('faStatus').textContent = 'Building draft...';
+  showLoading('Building FA & Mapping draft...');
+
+  try{
+    const srcZip = await JSZip.loadAsync(state.rawBuffer);
+    const sheetMap = await getWorkbookSheetMap(srcZip);
+    const faPath = sheetMap['FA Format'];
+    const mapPath = sheetMap[templateName];
+    if(!faPath || !mapPath){ hideLoading(); $('faStatus').textContent = `Missing template sheet "${templateName}" or "FA Format".`; return; }
+    const faXmlTemplate = await srcZip.file(faPath).async('string');
+    const mapXmlTemplate = await srcZip.file(mapPath).async('string');
+    const stylesXmlText = await srcZip.file('xl/styles.xml').async('string');
+    const themeFile = srcZip.file('xl/theme/theme1.xml');
+    const themeXmlText = themeFile ? await themeFile.async('string') : null;
+    const sstFile = srcZip.file('xl/sharedStrings.xml');
+    const sstXmlText = sstFile ? await sstFile.async('string') : null;
+
+    const inspNo = state.lastInspectionNo;
+    const faEntries = [];
+    for(let i=1;i<=validCount;i++){
+      const codeSel = document.querySelector(`.defCode[data-i="${i}"]`);
+      const qtyInp = document.querySelector(`.defQty[data-i="${i}"]`);
+      const descInp = document.querySelector(`.defDesc[data-i="${i}"]`);
+      const code = (codeSel && codeSel.value || '').trim();
+      let qty = parseInt(qtyInp && qtyInp.value,10)||0;
+      if(!code) continue;
+      if(qty<=0) qty = 1;
+      faEntries.push({i, code, qty, desc: descInp ? descInp.value : ''});
+    }
+    if(faEntries.length===0){ hideLoading(); $('faStatus').textContent = 'No valid defect code was selected.'; return; }
+
+    let stylesXmlOut = stylesXmlText;
+    let highlightStyleIdx = null;
+    if(mapType==='SLIDER'){
+      const stylesDoc = new DOMParser().parseFromString(stylesXmlText, 'application/xml');
+      const fillsEl = stylesDoc.getElementsByTagName('fills')[0];
+      const newFill = stylesDoc.createElementNS(fillsEl.namespaceURI,'fill');
+      const pf = stylesDoc.createElementNS(fillsEl.namespaceURI,'patternFill'); pf.setAttribute('patternType','solid');
+      const fg = stylesDoc.createElementNS(fillsEl.namespaceURI,'fgColor'); fg.setAttribute('rgb','FFFFFF99');
+      const bg = stylesDoc.createElementNS(fillsEl.namespaceURI,'bgColor'); bg.setAttribute('indexed','64');
+      pf.appendChild(fg); pf.appendChild(bg); newFill.appendChild(pf);
+      fillsEl.appendChild(newFill);
+      fillsEl.setAttribute('count', String(fillsEl.children.length));
+      const newFillIdx = fillsEl.children.length - 1;
+
+      const cellXfsEl = stylesDoc.getElementsByTagName('cellXfs')[0];
+      const mapDocTmp = new DOMParser().parseFromString(mapXmlTemplate,'application/xml');
+      const d2 = mapDocTmp.querySelector('c[r="D2"]');
+      const baseXfIdx = d2 && d2.getAttribute('s') ? parseInt(d2.getAttribute('s'),10) : 0;
+      const xfNodes = cellXfsEl.children;
+      const baseXf = (xfNodes[baseXfIdx] || xfNodes[0]).cloneNode(true);
+      baseXf.setAttribute('fillId', String(newFillIdx));
+      baseXf.setAttribute('applyFill','1');
+      cellXfsEl.appendChild(baseXf);
+      cellXfsEl.setAttribute('count', String(cellXfsEl.children.length));
+      highlightStyleIdx = cellXfsEl.children.length - 1;
+      stylesXmlOut = new XMLSerializer().serializeToString(stylesDoc);
+    }
+
+    const faSheetXmls = [];
+    const usedNames = [];
+    const codesForFile = [];
+    for(const entry of faEntries){
+      const doc = new DOMParser().parseFromString(faXmlTemplate, 'application/xml');
+      const sheetData = doc.getElementsByTagName('sheetData')[0];
+      const set = (addr,val) => setCellValue(doc, sheetData, addr, val);
+      set('K2','FA'+inspNo);
+      set('C4',$('txtWeekNo').value); set('C5',$('txtDate').value);
+      set('C6',$('txtTimeInspected').value); set('C7',$('txtFeedbackTime').value);
+      set('C8',$('cmbArea').value); set('C9',$('cmbProcess').value);
+      set('C10',$('txtRemarks').value); set('C12',$('cmbWaferNo').value+$('txtBlock').value);
+      set('F4',$('cmbProject').value); set('F5',$('cmbModel').value);
+      set('F6',$('cmbWaferNo').value); set('F7',$('cmbLensMag').value);
+      set('F12',$('cmbBarType').value);
+      set('I4',$('txtProductionOperator').value); set('I5',$('txtProductionPIC').value);
+      set('I6',$('cmbPEngineer').value); set('I7',$('cmbInspector').value);
+      set('I8',$('cmbTechnician').value); set('I9',$('cmbShift').value);
+      set('I12',$('txtUnitNo').value);
+      set('L4',$('cmbTrayType').value); set('L5',$('txtTrayNo').value);
+      set('L12',$('cmbChannel').value);
+      set('C13',entry.code); set('F13',entry.desc); set('L13',entry.qty);
+
+      // Inspection summary (same values on every FA sheet for this inspection)
+      const barU = ($('cmbBarType').value||'').toUpperCase().trim();
+      const inspQ = parseInt($('txtInspectedQty').value,10)||0;
+      const totalDef = faEntries.reduce((s,e)=>s+e.qty,0);
+      const totalSlider = barU==='MIDDLE BAR' ? 75 : barU==='LONG BAR' ? 90 : inspQ;
+      const mbQ = barU==='MIDDLE BAR' ? totalSlider : 0;
+      const lbQ = barU==='LONG BAR' ? totalSlider : 0;
+      // Fill by scanning label cells (works even if layout shifts slightly)
+      fillBesideLabel(doc, sheetData, /middle\s*bar/i, mbQ);
+      fillBesideLabel(doc, sheetData, /long\s*bar/i, lbQ);
+      fillBesideLabel(doc, sheetData, /total\s*slider/i, totalSlider);
+      fillBesideLabel(doc, sheetData, /total\s*defect/i, totalDef);
+      fillBesideLabel(doc, sheetData, /rejection\s*rate/i, $('txtRejectRate').value);
+
+      let name = safeSheetName(entry.code), dup=1;
+      while(usedNames.some(n=>n.toLowerCase()===name.toLowerCase())){ dup++; name = safeSheetName(entry.code.slice(0,27)+'_'+dup); }
+      usedNames.push(name);
+      codesForFile.push(cleanFileName(entry.code));
+      faSheetXmls.push({name, xml:new XMLSerializer().serializeToString(doc), sourcePath: faPath});
+    }
+
+    const mapDoc = new DOMParser().parseFromString(mapXmlTemplate,'application/xml');
+    const mapSheetData = mapDoc.getElementsByTagName('sheetData')[0];
+
+    // Build list of defected slider/OCR values (only defected — answer 2A)
+    const mapRows = [];
+    for(const entry of faEntries){
+      for(let ocrRow=1; ocrRow<=entry.qty; ocrRow++){
+        const inp = document.querySelector(`.ocr[data-row="${ocrRow}"][data-col="${entry.i}"]`);
+        const val = inp ? inp.value.trim() : '';
+        if(val) mapRows.push({code: entry.code, val});
+      }
+    }
+
+    // (C) List in columns A/B/C for all mapping types
+    let r = 2;
+    for(const row of mapRows){
+      setCellValue(mapDoc, mapSheetData, 'A'+r, r-1);
+      setCellValue(mapDoc, mapSheetData, 'B'+r, row.code);
+      setCellValue(mapDoc, mapSheetData, 'C'+r, row.val);
+      if(mapType==='SLIDER'){
+        setCellValue(mapDoc, mapSheetData, 'D'+r, '', {styleOverride: highlightStyleIdx});
+        setCellValue(mapDoc, mapSheetData, 'E'+r, '', {styleOverride: highlightStyleIdx});
+      }
+      r++;
+    }
+
+    // (C) For MB/LB also mark the visual grid: find header cells 1..N and write defect code one row below
+    if(mapType==='MB' || mapType==='LB'){
+      const maxPos = mapType==='MB' ? 75 : 90;
+      const headerAt = {}; // sliderNum → {row, colLetter}
+      for(const cell of Array.from(mapSheetData.querySelectorAll('c'))){
+        const addr = cell.getAttribute('r');
+        if(!addr) continue;
+        const m = addr.match(/^([A-Z]+)(\d+)$/);
+        if(!m) continue;
+        let text = '';
+        const v = cell.getElementsByTagName('v')[0];
+        const t = cell.getElementsByTagName('t')[0];
+        if(t) text = t.textContent;
+        else if(v) text = v.textContent;
+        const num = parseInt(String(text).trim(), 10);
+        if(!isNaN(num) && num>=1 && num<=maxPos){
+          headerAt[num] = {col: m[1], row: parseInt(m[2],10)};
+        }
+      }
+      for(const row of mapRows){
+        const num = parseInt(row.val, 10);
+        if(isNaN(num) || !headerAt[num]) continue;
+        const h = headerAt[num];
+        // Mark one row below the number header (standard layout)
+        setCellValue(mapDoc, mapSheetData, h.col+(h.row+1), row.code);
+      }
+    }
+
+    setCellValue(mapDoc, mapSheetData, 'K1', $('cmbWaferNo').value+$('txtBlock').value);
+    if(mapType==='SLIDER'){
+      setCellValue(mapDoc, mapSheetData, 'V1', $('txtTrayNo').value);
+      setCellValue(mapDoc, mapSheetData, 'AB1', $('txtOutputQty').value);
+    }
+    let mapName = 'MAPPING', dup=1;
+    while(usedNames.some(n=>n.toLowerCase()===mapName.toLowerCase())){ dup++; mapName='MAPPING_'+dup; }
+    const mapXmlOut = new XMLSerializer().serializeToString(mapDoc);
+
+    const outZip = new JSZip();
+    const contentTypesOverrides = [];
+    const wbRelEntries = [];
+    const wbSheetEntries = [];
+    const addedParts = new Set();
+    let sheetCounter = 1, ridCounter = 1;
+
+    const addSheet = async (name, xml, sourcePath) => {
+      const fileName = `sheet${sheetCounter}.xml`;
+      const path = `xl/worksheets/${fileName}`;
+      outZip.file(path, xml);
+      contentTypesOverrides.push(`<Override PartName="/${path}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`);
+      const rid = 'rId'+ridCounter++;
+      wbRelEntries.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/${fileName}"/>`);
+      wbSheetEntries.push(`<sheet name="${escapeXml(name)}" sheetId="${sheetCounter}" r:id="${rid}"/>`);
+      await copySheetDrawing(srcZip, outZip, sourcePath, fileName, addedParts, contentTypesOverrides);
+      sheetCounter++;
+    };
+
+    for(const s of faSheetXmls) await addSheet(s.name, s.xml, faPath);
+    await addSheet(mapName, mapXmlOut, mapPath);
+
+    outZip.file('xl/styles.xml', stylesXmlOut);
+    contentTypesOverrides.push('<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>');
+    wbRelEntries.push(`<Relationship Id="rId${ridCounter++}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`);
+
+    if(themeXmlText){
+      outZip.file('xl/theme/theme1.xml', themeXmlText);
+      contentTypesOverrides.push('<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>');
+      wbRelEntries.push(`<Relationship Id="rId${ridCounter++}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>`);
+    }
+    if(sstXmlText){
+      outZip.file('xl/sharedStrings.xml', sstXmlText);
+      contentTypesOverrides.push('<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>');
+      wbRelEntries.push(`<Relationship Id="rId${ridCounter++}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>`);
+    }
+
+    const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${wbSheetEntries.join('')}</sheets></workbook>`;
+    outZip.file('xl/workbook.xml', workbookXml);
+    contentTypesOverrides.push('<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>');
+    outZip.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wbRelEntries.join('')}</Relationships>`);
+
+    contentTypesOverrides.push('<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>');
+    contentTypesOverrides.push('<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>');
+    outZip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="svg" ContentType="image/svg+xml"/><Default Extension="wmf" ContentType="image/x-wmf"/><Default Extension="wdp" ContentType="image/vnd.ms-photo"/>${contentTypesOverrides.join('')}</Types>`);
+
+    outZip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`);
+    outZip.file('docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${escapeXml(inspNo)} FA Draft</dc:title></cp:coreProperties>`);
+    outZip.file('docProps/app.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>PhotoVac Data Entry</Application></Properties>`);
+
+    const fileName = `FA_${cleanFileName(inspNo)}_${codesForFile.join('_')}.xlsx`;
+    const out = await outZip.generateAsync({type:'array'});
+    if(window.showSaveFilePicker){
+      const handle = await window.showSaveFilePicker({suggestedName: fileName,
+        types:[{description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+      const writable = await handle.createWritable();
+      await writable.write(out);
+      await writable.close();
+    } else {
+      const blob = new Blob([out], {type:'application/octet-stream'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = fileName; a.click();
+    }
+    $('faStatus').textContent = mapType==='SLIDER'
+      ? `Saved ${fileName}. Open it and fill Row No. (column D) and Column No. (column E) on the MAPPING sheet, then save.`
+      : `Saved ${fileName}.`;
+  } catch(err){
+    if(err.name !== 'AbortError'){ console.error(err); $('faStatus').textContent = 'Error generating draft: '+err.message; }
+  }
+  hideLoading();
+}
+
+// ---------- File open ----------
+async function openFile(){
+  try{
+    const [handle] = await window.showOpenFilePicker({
+      types: [{description:'Excel Workbook', accept:{
+        'application/vnd.ms-excel.sheet.macroEnabled.12':['.xlsm'],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']
+      }}]
+    });
+    const perm = await handle.requestPermission({mode:'readwrite'});
+    if(perm !== 'granted'){ showBanner('Write permission was not granted.', 'warn'); return; }
+    showLoading('Loading database file...');
+    const file = await handle.getFile();
+    state.fileName = file.name;
+    state.ext = file.name.toLowerCase().endsWith('.xlsm') ? 'xlsm' : 'xlsx';
+    const buf = await file.arrayBuffer();
+    state.rawBuffer = buf.slice(0);
+    state.wb = XLSX.read(buf, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
+    state.handle = handle;
+
+    for(const need of ['REFERENCE','QALM','Populated Record']){
+      if(!state.wb.Sheets[need]) throw new Error(`Sheet "${need}" not found in this file.`);
+    }
+    loadReferenceLists();
+    buildDefectMap(); // also scans QALM Inspection Nos for auto sequence
+    // Q2 kept for VBA compatibility only; next number comes from QALM (max for Area+Date+Shift)
+    const counterCellObj = state.wb.Sheets['REFERENCE'][REF_COLS.counterCell];
+    const initCounter = counterCellObj ? parseInt(counterCellObj.v,10) : 0;
+    state.counterValue = isNaN(initCounter) ? 0 : initCounter;
+
+    $('fileStatus').textContent = `Connected: ${state.fileName}`;
+    $('lockedMsg').style.display = 'none';
+    $('formWrap').style.display = 'block';
+    $('btnClear').style.display = 'inline-block';
+    populateForm();
+  } catch(err){
+    if(err.name !== 'AbortError'){ console.error(err); alert('Could not open file: '+err.message); }
+  }
+  hideLoading();
+}
+
+// ---------- Wire up ----------
+$('btnOpen').addEventListener('click', openFile);
+$('btnOpen2').addEventListener('click', openFile);
+$('btnClear').addEventListener('click', ()=>resetForm(true));
+$('btnNewEntry').addEventListener('click', ()=>resetForm(false)); // Next similar — keep setup
+$('btnSave').addEventListener('click', saveEntry);
+$('btnGenFA').addEventListener('click', generateFAMapping);
+$('mappingType').addEventListener('change', ()=>{ if(state.lastInspectionNo) renderMapPreview(); });
+$('cmbBarType').addEventListener('change', ()=>{
+  syncMappingTypeFromBar();
+  if(state.lastInspectionNo) renderMapPreview();
+  scheduleDraft();
+});
+document.querySelectorAll('.sidebar-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>switchPanel(btn.getAttribute('data-panel')));
+});
+$('refListKey').addEventListener('change', refreshRefCurrentList);
+$('btnRefAdd').addEventListener('click', addToReference);
+document.querySelectorAll('.preview-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.preview-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const which = tab.getAttribute('data-tab');
+    $('previewFA').style.display = which==='fa' ? 'block' : 'none';
+    $('previewMap').style.display = which==='map' ? 'block' : 'none';
+  });
+});
+$('txtDate').addEventListener('change', ()=>{ updateWorkWeek(); updateComputedInspectionNo(); scheduleDraft(); });
+$('txtTimeInspected').addEventListener('change', ()=>{ updateFeedbackTime(); scheduleDraft(); });
+$('cmbArea').addEventListener('change', ()=>{ updateComputedInspectionNo(); scheduleDraft(); });
+$('cmbShift').addEventListener('change', ()=>{ updateComputedInspectionNo(); scheduleDraft(); });
+$('txtInspectedQty').addEventListener('input', ()=>{ computeRejectRate(); scheduleDraft(); });
+$('txtRejectQty').addEventListener('input', ()=>{ computeRejectRate(); scheduleDraft(); });
+$('txtDefectCriteriaCount').addEventListener('input', e=>{ e.target.value = e.target.value.replace(/[^0-9]/g,''); renderDefectRows(); scheduleDraft(); });
+
+// Draft on most field changes
+['cmbProcess','cmbTypeChecking','cmbShift','cmbProject','cmbModel','cmbWaferNo','txtBlock','txtRow',
+ 'cmbTrayType','txtTrayNo','txtUnitNo','cmbLensMag','cmbChannel','cmbBarType',
+ 'txtProductionOperator','txtProductionPIC','cmbPEngineer','cmbInspector','cmbTechnician','txtRemarks'
+].forEach(id=>{
+  const el = $(id);
+  if(el) el.addEventListener('change', scheduleDraft);
+  if(el && el.tagName==='INPUT') el.addEventListener('input', scheduleDraft);
+});
+
+// Collapsible cards
+document.querySelectorAll('[data-toggle]').forEach(hdr=>{
+  hdr.addEventListener('click', ()=>{
+    hdr.closest('.card').classList.toggle('collapsed');
+  });
+});
+
+// Keyboard shortcut: Ctrl/Cmd+S to save
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey || e.metaKey) && e.key === 's'){
+    e.preventDefault();
+    if($('formWrap').style.display!=='none' && !$('btnSave').disabled) saveEntry();
+  }
+});
+
+// ---------- Theme ----------
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t==='light' ? '' : t);
+  if(t==='light') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  $('themeSelect').value = t;
+  try{ localStorage.setItem('photovac-theme', t); }catch(e){}
+}
+(function initTheme(){
+  let saved = 'light';
+  try{ saved = localStorage.getItem('photovac-theme') || 'light'; }catch(e){}
+  applyTheme(saved);
+})();
+$('themeSelect').addEventListener('change', e=>applyTheme(e.target.value));
+
+// Show draft notice on locked screen if a draft exists
+(function(){
+  try{
+    if(localStorage.getItem(DRAFT_KEY)){
+      const n = $('draftNotice');
+      if(n) n.style.display = 'block';
+    }
+  }catch(e){}
+})();
+
+if(!window.showOpenFilePicker){
+  document.body.innerHTML = '<div class="locked-msg"><h2>Browser not supported</h2><p>This tool needs the File System Access API, available in Chrome or Edge on desktop. Please open this file in one of those browsers.</p></div>';
+}
+</script>
+</body>
+</html>
