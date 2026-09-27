@@ -1208,7 +1208,9 @@ async function saveEntry(){
     for(const rowVals of popRows) appendDataRow(popDoc, popSheetData, rowVals);
     zip.file(popPath, new XMLSerializer().serializeToString(popDoc));
 
-    const out = await zip.generateAsync({type:'array'});
+    // Use Uint8Array, not a normal JavaScript Array. The connected workbook is large,
+    // and type:'array' can throw RangeError: Invalid array length during ZIP generation.
+    const out = await zip.generateAsync({type:'uint8array'});
     const writable = await state.handle.createWritable();
     await writable.write(out);
     await writable.close();
@@ -1540,7 +1542,7 @@ async function addToReference(){
       setCellValue(refDoc, sheetData, numToColLetter(meta.descCol)+newRow, desc);
     }
     zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
-    const out = await zip.generateAsync({type:'array'});
+    const out = await zip.generateAsync({type:'uint8array'});
     const writable = await state.handle.createWritable();
     await writable.write(out);
     await writable.close();
@@ -1836,7 +1838,7 @@ async function generateFAMapping(){
     outZip.file('docProps/app.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>PhotoVac Data Entry</Application></Properties>`);
 
     const fileName = `FA_${cleanFileName(inspNo)}_${codesForFile.join('_')}.xlsx`;
-    const out = await outZip.generateAsync({type:'array'});
+    const out = await outZip.generateAsync({type:'uint8array'});
     if(window.showSaveFilePicker){
       const handle = await window.showSaveFilePicker({suggestedName: fileName,
         types:[{description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
