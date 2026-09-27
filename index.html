@@ -897,9 +897,14 @@ function updateComputedInspectionNo(){
 }
 
 // ---------- Raw-XML helpers ----------
+async function zf(zip, path){
+  const f = zip.file(path);
+  if(!f) throw new Error(`Could not read "${path}" from the database file — it may not have loaded completely. Try reconnecting the file (Open Database again).`);
+  return f.async('string');
+}
 async function getWorkbookSheetMap(zip){
-  const wbXml = await zip.file('xl/workbook.xml').async('string');
-  const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+  const wbXml = await zf(zip, 'xl/workbook.xml');
+  const relsXml = await zf(zip, 'xl/_rels/workbook.xml.rels');
   const wbDoc = new DOMParser().parseFromString(wbXml, 'application/xml');
   const relsDoc = new DOMParser().parseFromString(relsXml, 'application/xml');
   const RELNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -1108,15 +1113,16 @@ async function saveEntry(){
     if(!refPath || !qalmPath || !popPath){ throw new Error('Could not locate REFERENCE / QALM / Populated Record in the file.'); }
 
     // Keep REFERENCE!Q2 in sync for any remaining VBA tools
-    const refXml = await zip.file(refPath).async('string');
+    const refXml = await zf(zip, refPath);
     const refDoc = new DOMParser().parseFromString(refXml, 'application/xml');
     setCellValue(refDoc, refDoc.getElementsByTagName('sheetData')[0], 'Q2', seq);
     zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
 
-    const qalmXml = await zip.file(qalmPath).async('string');
+    const qalmXml = await zf(zip, qalmPath);
     const qalmDoc = new DOMParser().parseFromString(qalmXml, 'application/xml');
     const qalmSheetData = qalmDoc.getElementsByTagName('sheetData')[0];
-    const qalmVals = new Array(state.qalmLastCol+1).fill('');
+    const qalmLastCol = Number.isFinite(state.qalmLastCol) && state.qalmLastCol >= 0 ? state.qalmLastCol : 40;
+    const qalmVals = new Array(qalmLastCol+1).fill('');
     const set = (col1based, v) => { qalmVals[col1based-1] = v; };
     set(1, inspNo); set(2, $('txtWeekNo').value); set(3, dateStr); set(4, $('txtTimeInspected').value);
     set(5, $('txtFeedbackTime').value); set(6, $('cmbArea').value); set(7, $('cmbProcess').value);
@@ -1144,7 +1150,7 @@ async function saveEntry(){
     appendDataRow(qalmDoc, qalmSheetData, qalmVals);
     zip.file(qalmPath, new XMLSerializer().serializeToString(qalmDoc));
 
-    const popXml = await zip.file(popPath).async('string');
+    const popXml = await zf(zip, popPath);
     const popDoc = new DOMParser().parseFromString(popXml, 'application/xml');
     const popSheetData = popDoc.getElementsByTagName('sheetData')[0];
     const barType = ($('cmbBarType').value||'').toUpperCase().trim();
@@ -1479,16 +1485,16 @@ async function addToReference(){
     const sheetMap = await getWorkbookSheetMap(zip);
     const refPath = sheetMap['REFERENCE'];
     if(!refPath) throw new Error('REFERENCE sheet not found.');
-    const refXml = await zip.file(refPath).async('string');
+    const refXml = await zf(zip, refPath);
     const refDoc = new DOMParser().parseFromString(refXml, 'application/xml');
     const sheetData = refDoc.getElementsByTagName('sheetData')[0];
     // Find next empty row in that column (scan existing rows)
     let maxRow = 1;
     const colLetter = numToColLetter(meta.col);
-    for(const cell of Array.from(sheetData.querySelectorAll(`c[r^="${colLetter}"]`))){
+    for(const cell of Array.from(sheetData.querySelectorAll('c'))){
       const addr = cell.getAttribute('r')||'';
-      const m = addr.match(/^[A-Z]+(\d+)$/);
-      if(m) maxRow = Math.max(maxRow, parseInt(m[1],10));
+      const m = addr.match(/^([A-Z]+)(\d+)$/);
+      if(m && m[1]===colLetter) maxRow = Math.max(maxRow, parseInt(m[2],10));
     }
     const newRow = maxRow + 1;
     setCellValue(refDoc, sheetData, colLetter+newRow, val);
@@ -1584,9 +1590,9 @@ async function generateFAMapping(){
     const faPath = sheetMap['FA Format'];
     const mapPath = sheetMap[templateName];
     if(!faPath || !mapPath){ hideLoading(); $('faStatus').textContent = `Missing template sheet "${templateName}" or "FA Format".`; return; }
-    const faXmlTemplate = await srcZip.file(faPath).async('string');
-    const mapXmlTemplate = await srcZip.file(mapPath).async('string');
-    const stylesXmlText = await srcZip.file('xl/styles.xml').async('string');
+    const faXmlTemplate = await zf(srcZip, faPath);
+    const mapXmlTemplate = await zf(srcZip, mapPath);
+    const stylesXmlText = await zf(srcZip, 'xl/styles.xml');
     const themeFile = srcZip.file('xl/theme/theme1.xml');
     const themeXmlText = themeFile ? await themeFile.async('string') : null;
     const sstFile = srcZip.file('xl/sharedStrings.xml');
