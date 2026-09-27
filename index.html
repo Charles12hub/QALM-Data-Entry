@@ -321,6 +321,28 @@
   .map-slider-note{font-size:13px;color:#444;margin:12px 0 0;}
   @media(max-width:900px){.preview-pane{max-height:520px}.fa-sheet{transform-origin:top left}.excel-preview-toolbar{position:static}}
 
+
+  /* v8 full-page workspace, explicit workbook selector, and scalable previews */
+  main{max-width:none!important;margin:0!important;padding:12px 14px 32px!important;}
+  #panelFA .card{width:100%;}
+  #panelFA .card-body{padding:12px;}
+  #faPreview{width:100%;}
+  .preview-pane{width:100%;height:calc(100vh - 285px);max-height:none!important;overflow:auto!important;padding:10px!important;}
+  .preview-stage{position:relative;width:100%;min-height:100%;}
+  .preview-scale{transform-origin:top left;will-change:transform;}
+  .preview-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto;}
+  .preview-controls label{font-size:11px;font-weight:700;color:var(--muted);}
+  .preview-controls select{padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--panel);color:var(--text);font-size:11px;}
+  .workbook-select{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:5px;padding:5px 8px;font-size:11px;min-width:175px;}
+  .workbook-select option{color:#222;background:#fff;}
+  .connection-label{font-size:10px;opacity:.85;}
+  .fa-grid{grid-template-columns:150px 18px 190px 150px 18px 190px 155px 18px 190px 170px 18px 100px 165px!important;}
+  .xl-cell{white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;min-height:29px;}
+  .xl-value,.xl-summary-value{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
+  .fa-sheet{width:1500px!important;}
+  .map-sheet{width:1500px!important;}
+  @media(max-width:900px){.preview-pane{height:calc(100vh - 320px)}.workbook-select{min-width:140px}}
+
 </style>
 </head>
 <body>
@@ -347,6 +369,10 @@
       <option value="pink">Pink</option>
       <option value="slate">Slate (dark)</option>
       <option value="plum">Plum (dark)</option>
+    </select>
+    <span class="connection-label">Data Workbook</span>
+    <select class="workbook-select" id="dataWorkbookSelect" disabled title="Choose which Excel data workbook to connect">
+      <option value="">Select Excel File</option>
     </select>
     <span class="status" id="fileStatus">No Main Folder connected</span>
     <button class="btn-primary" id="btnOpen">Open Main Folder</button>
@@ -512,6 +538,16 @@
             <div class="preview-tabs">
               <button type="button" class="preview-tab active" data-tab="fa">FA Preview</button>
               <button type="button" class="preview-tab" data-tab="map">Mapping Preview</button>
+              <div class="preview-controls">
+                <label for="previewZoom">View</label>
+                <select id="previewZoom">
+                  <option value="fit">Fit Width</option>
+                  <option value="0.50">50%</option>
+                  <option value="0.75">75%</option>
+                  <option value="1">100%</option>
+                  <option value="1.25">125%</option>
+                </select>
+              </div>
             </div>
             <div id="previewFA" class="preview-pane"></div>
             <div id="previewMap" class="preview-pane" style="display:none"></div>
@@ -1031,6 +1067,8 @@ function buildInspectionNo(seq){
   return `QUA-${areaCode()}-${dateCode()}-${shiftCode()}-${String(seq).padStart(3,'0')}`;
 }
 function updateComputedInspectionNo(){
+  if(!$('cmbArea').value){ $('computed').textContent='Select Area'; return; }
+  if(!state.handle || !state.rawBuffer){ $('computed').textContent='Select Excel File'; return; }
   $('computed').textContent = buildInspectionNo(nextSeq());
 }
 
@@ -1484,7 +1522,7 @@ function renderFAPreview(selectedIndex){
   wrap.dataset.faIndex=String(idx);
   const entry=faEntries[idx], inspNo=state.lastInspectionNo||'(not recorded yet)';
   const selector = faEntries.length>1 ? `<div class="excel-preview-toolbar"><label>FA SHEET</label><select id="faPreviewSelect">${faEntries.map((e,i)=>`<option value="${i}" ${i===idx?'selected':''}>${escapeHtml(e.code)} — Qty ${e.qty}</option>`).join('')}</select><span class="hint">Preview ${idx+1} of ${faEntries.length}</span></div>` : '';
-  let h=selector+'<div class="excel-sheet fa-sheet"><div class="fa-grid">';
+  let h=selector+'<div class="preview-stage"><div class="preview-scale"><div class="excel-sheet fa-sheet"><div class="fa-grid">';
   h+=faCell('xl-logo','TDK','1 / 3','1 / 3');
   h+=faCell('xl-title','QA FAILURE ALERT','3 / 10','1 / 3');
   h+=faCell('xl-fa-no-label','QA FA NO.','10 / 14','1');
@@ -1512,9 +1550,10 @@ function renderFAPreview(selectedIndex){
   h+=faCell('xl-capa-head','Corrective/Preventive Action (CAPA)','1 / 7','25')+faCell('xl-capa-note','Incoming Defect (No Need to Answer CAPA)','7 / 14','25');
   h+=faCell('xl-gray','Possible Root Cause:','1 / 14','26')+faCell('xl-gray','Corrective Action (Containment/Immediate Action):','1 / 14','27 / 29')+faCell('xl-gray','Preventive Action: (To Prevent Recurrence):','1 / 14','29 / 31')+faCell('xl-gray','Process PIC:                         Reviewed & Confirmed By (Process Engr/Sup/Manager):                         CAPA Status:','1 / 14','31 / 34')+faCell('xl-gray','Effectiveness Verification(QA):','1 / 14','34 / 36');
   h+=faCell('xl-lot','LOT HISTORY','1 / 14','36')+faCell('xl-lot-space','','1 / 14','37 / 47');
-  h+='</div></div>';
+  h+='</div></div></div></div>';
   wrap.innerHTML=h;
   const sel=$('faPreviewSelect'); if(sel) sel.addEventListener('change',e=>renderFAPreview(parseInt(e.target.value,10)||0));
+  applyPreviewZoom('previewFA');
 }
 function collectValidMapRows(mapType){
   const rows=[];
@@ -1539,15 +1578,68 @@ function renderMapPreview(){
   const wrap=$('previewMap'), mapType=$('mappingType').value, rows=collectValidMapRows(mapType);
   if(collectFaEntries().length===0){wrap.innerHTML='<p class="preview-empty">No defect codes selected.</p>';return;}
   if(mapType==='SLIDER'){
-    let h='<div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>OCR Number</th><th>Row</th><th>Col</th></tr></thead><tbody>';
-    rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td><td></td><td></td></tr>`);h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">Slider Level</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div><p class="map-slider-note">Row No. and Column No. remain for manual entry in the exported mapping sheet.</p></div></div></div>';wrap.innerHTML=h;return;
+    let h='<div class="preview-stage"><div class="preview-scale"><div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>OCR Number</th><th>Row</th><th>Col</th></tr></thead><tbody>';
+    rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td><td></td><td></td></tr>`);h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">Slider Level</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div><p class="map-slider-note">Row No. and Column No. remain for manual entry in the exported mapping sheet.</p></div></div></div></div></div>';wrap.innerHTML=h;applyPreviewZoom('previewMap');return;
   }
   const max=mapType==='MB'?75:90, split=mapType==='LB'?45:max, title=mapType==='MB'?'Middle Bar':'Long Bar';
   const palette=['#ff1a1a','#ffc000','#00b0f0','#92d050','#7030a0','#ff66cc']; const colors={}; collectFaEntries().forEach((e,i)=>colors[e.code]=palette[i%palette.length]);
   const mapBy={}; rows.forEach(x=>mapBy[x.num]=x);
-  let h='<div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>Slider<br>Number:</th></tr></thead><tbody>';
+  let h='<div class="preview-stage"><div class="preview-scale"><div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>Slider<br>Number:</th></tr></thead><tbody>';
   rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td></tr>`); for(let i=rows.length;i<20;i++)h+='<tr><td>&nbsp;</td><td></td><td></td></tr>'; h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">'+title+'</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div>';
-  h+=sliderGrid(1,split,mapBy,colors); if(split<max){h+='<div class="map-turn"></div>'+sliderGrid(split+1,max,mapBy,colors);} h+='<div class="map-legend"><strong style="grid-column:1/3;margin-bottom:5px">Legend;</strong><span class="legend-swatch" style="background:#c6e0b4"></span><span>Sampling Size</span>'; Object.keys(colors).forEach(code=>h+=`<span class="legend-swatch" style="background:${colors[code]}"></span><span>${escapeHtml(code)}</span>`); h+='</div></div></div></div>';wrap.innerHTML=h;
+  h+=sliderGrid(1,split,mapBy,colors); if(split<max){h+='<div class="map-turn"></div>'+sliderGrid(split+1,max,mapBy,colors);} h+='<div class="map-legend"><strong style="grid-column:1/3;margin-bottom:5px">Legend;</strong><span class="legend-swatch" style="background:#c6e0b4"></span><span>Sampling Size</span>'; Object.keys(colors).forEach(code=>h+=`<span class="legend-swatch" style="background:${colors[code]}"></span><span>${escapeHtml(code)}</span>`); h+='</div></div></div></div></div></div>';wrap.innerHTML=h;applyPreviewZoom('previewMap');
+}
+function applyPreviewZoom(paneId){
+  const pane=$(paneId); if(!pane) return;
+  const stage=pane.querySelector('.preview-stage');
+  const scaleEl=pane.querySelector('.preview-scale');
+  const sheet=pane.querySelector('.excel-sheet');
+  if(!stage||!scaleEl||!sheet) return;
+  const mode=$('previewZoom') ? $('previewZoom').value : 'fit';
+  const naturalWidth=sheet.offsetWidth || parseFloat(getComputedStyle(sheet).width) || 1;
+  const available=Math.max(300,pane.clientWidth-22);
+  let scale=mode==='fit' ? Math.min(1,available/naturalWidth) : Number(mode)||1;
+  scaleEl.style.transform=`scale(${scale})`;
+  scaleEl.style.width=naturalWidth+'px';
+  const naturalHeight=scaleEl.scrollHeight;
+  stage.style.height=Math.ceil(naturalHeight*scale)+'px';
+  stage.style.width=Math.ceil(naturalWidth*scale)+'px';
+  stage.dataset.scale=String(scale);
+}
+function applyActivePreviewZoom(){
+  if($('previewFA').style.display!=='none') applyPreviewZoom('previewFA');
+  if($('previewMap').style.display!=='none') applyPreviewZoom('previewMap');
+}
+async function discoverDataWorkbooks(){
+  const select=$('dataWorkbookSelect');
+  select.innerHTML='<option value="">Select Excel File</option>';
+  if(!state.rootHandle){ select.disabled=true; return; }
+  const names=[];
+  for await (const [name,handle] of state.rootHandle.entries()){
+    if(handle.kind!=='file') continue;
+    if(!/\.(xlsx|xlsm)$/i.test(name)) continue;
+    if(/^Reference\.(xlsx|xlsm)$/i.test(name)) continue;
+    names.push(name);
+  }
+  names.sort((a,b)=>a.localeCompare(b));
+  for(const name of names){ const opt=document.createElement('option'); opt.value=name; opt.textContent=name; select.appendChild(opt); }
+  select.disabled=false;
+}
+async function connectSelectedDataWorkbook(fileName){
+  if(!fileName){
+    state.handle=null; state.fileName=''; state.rawBuffer=null; state.wb=null; state.loadedArea='';
+    $('fileStatus').textContent='Reference.xlsx connected | Select Excel File';
+    updateComputedInspectionNo(); return;
+  }
+  const handle=await state.rootHandle.getFileHandle(fileName);
+  const perm=await handle.requestPermission({mode:'readwrite'});
+  if(perm!=='granted') throw new Error(`Write permission was not granted for ${fileName}.`);
+  showLoading(`Loading ${fileName}...`);
+  const file=await handle.getFile(); const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array',bookVBA:true,cellDates:false,cellStyles:true});
+  for(const need of ['QALM','Populated Record']) if(!wb.Sheets[need]) throw new Error(`Sheet "${need}" was not found in ${fileName}.`);
+  state.handle=handle; state.fileName=fileName; state.ext=/\.xlsm$/i.test(fileName)?'xlsm':'xlsx'; state.rawBuffer=buf.slice(0); state.wb=wb; state.loadedArea=($('cmbArea').value||'MANUAL').toUpperCase();
+  buildDefectMap(); updateComputedInspectionNo();
+  $('fileStatus').textContent=`Reference.xlsx + ${fileName}`;
 }
 function escapeHtml(s){
   return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -2065,9 +2157,11 @@ async function openFile(){
     $('btnClear').style.display = 'inline-block';
     populateForm();
     switchPanel('inspection');
-    const initialArea = $('cmbArea').value || 'PHOTOVAC';
-    await ensureDataWorkbookForArea(initialArea, true);
-    showBanner(`Main Folder connected. Reference: Reference.xlsx | Data: ${state.fileName} | FA folder: Failure Alert`, 'ok');
+    state.handle=null; state.fileName=''; state.rawBuffer=null; state.wb=null; state.loadedArea=''; state.qalmInspNos=[];
+    await discoverDataWorkbooks();
+    $('fileStatus').textContent='Reference.xlsx connected | Select Excel File';
+    $('computed').textContent='Select Area / Excel File';
+    showBanner('Main Folder connected. Select the Area of Inspection and choose the Excel data workbook in the header.', 'ok');
   } catch(err){
     if(err.name !== 'AbortError'){ console.error(err); alert('Could not open Main Folder: '+err.message); }
   } finally {
@@ -2078,6 +2172,13 @@ async function openFile(){
 // ---------- Wire up ----------
 $('btnOpen').addEventListener('click', openFile);
 $('btnOpen2').addEventListener('click', openFile);
+$('dataWorkbookSelect').addEventListener('change', async e=>{
+  try{ await connectSelectedDataWorkbook(e.target.value); if(e.target.value) showBanner(`Connected to ${e.target.value}.`,'ok'); }
+  catch(err){ console.error(err); showBanner(err.message,'warn'); }
+  finally{ hideLoading(); }
+});
+$('previewZoom').addEventListener('change', applyActivePreviewZoom);
+window.addEventListener('resize', ()=>{ if($('previewZoom').value==='fit') applyActivePreviewZoom(); });
 $('btnClear').addEventListener('click', ()=>resetForm(true));
 $('btnNewEntry').addEventListener('click', ()=>resetForm(false)); // Next similar — keep setup
 $('btnSave').addEventListener('click', saveEntry);
@@ -2100,18 +2201,22 @@ document.querySelectorAll('.preview-tab').forEach(tab=>{
     const which = tab.getAttribute('data-tab');
     $('previewFA').style.display = which==='fa' ? 'block' : 'none';
     $('previewMap').style.display = which==='map' ? 'block' : 'none';
+    requestAnimationFrame(applyActivePreviewZoom);
   });
 });
 $('txtDate').addEventListener('change', ()=>{ updateWorkWeek(); updateComputedInspectionNo(); scheduleDraft(); });
 $('txtTimeInspected').addEventListener('change', ()=>{ updateFeedbackTime(); scheduleDraft(); });
 $('cmbArea').addEventListener('change', async ()=>{
+  const area=$('cmbArea').value;
+  const select=$('dataWorkbookSelect');
   try{
-    if(state.rootHandle) await ensureDataWorkbookForArea($('cmbArea').value);
-    updateComputedInspectionNo();
-  }catch(err){
-    console.error(err);
-    showBanner(err.message, 'warn');
-  }
+    if(state.rootHandle && area){
+      const candidates=dataCandidatesForArea(area).map(x=>x.toLowerCase());
+      const match=[...select.options].find(o=>candidates.includes(o.value.toLowerCase()));
+      if(match){ select.value=match.value; await connectSelectedDataWorkbook(match.value); }
+      else { updateComputedInspectionNo(); showBanner(`Select the Excel workbook for ${area} from Data Workbook.`, 'warn'); }
+    } else updateComputedInspectionNo();
+  }catch(err){ console.error(err); showBanner(err.message,'warn'); }
   scheduleDraft();
 });
 $('cmbShift').addEventListener('change', ()=>{ updateComputedInspectionNo(); scheduleDraft(); });
