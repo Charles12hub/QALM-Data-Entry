@@ -269,6 +269,58 @@
   }
   .spinner{width:36px;height:36px;border-radius:50%;border:3.5px solid var(--border);border-top-color:var(--neon);animation:pv-spin .75s linear infinite;}
   @keyframes pv-spin{to{transform:rotate(360deg)}}
+
+  /* Excel-style FA and mapping previews */
+  .preview-pane{background:#d6d6d6;padding:10px;max-height:620px;overflow:auto;border-radius:0 8px 8px 8px;}
+  .excel-preview-toolbar{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:6px;position:sticky;left:0;z-index:3;}
+  .excel-preview-toolbar label{font-size:11px;font-weight:700;color:var(--muted);}
+  .excel-preview-toolbar select{min-width:180px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;color:#111;font-family:var(--mono);}
+  .excel-sheet{background:#fff;color:#000;border:2px solid #001a66;box-shadow:0 2px 9px rgba(0,0,0,.18);font-family:"Arial Narrow","Segoe UI",Arial,sans-serif;margin:0 auto;}
+  .fa-sheet{width:1180px;min-height:1380px;}
+  .fa-grid{display:grid;grid-template-columns:1.05fr .05fr 1.05fr .05fr 1.05fr .05fr 1.05fr .05fr 1.15fr .05fr 1.05fr .05fr 1.55fr;grid-auto-rows:minmax(28px,auto);}
+  .xl-cell{border-right:1px solid #8092a6;border-bottom:1px solid #8092a6;padding:4px 6px;display:flex;align-items:center;min-width:0;overflow:hidden;white-space:normal;line-height:1.15;}
+  .xl-title{background:#ffff00;font-size:27px;justify-content:center;font-weight:500;border-bottom:2px solid #111;min-height:58px;}
+  .xl-logo{background:#ffff00;color:#0658bb;font-size:27px;font-weight:900;justify-content:center;border-right:2px solid #111;border-bottom:2px solid #111;}
+  .xl-fa-no-label,.xl-fa-no-value{background:#ffff00;justify-content:center;border-left:2px solid #111;border-bottom:1px solid #111;font-weight:700;}
+  .xl-fa-no-label{font-size:15px;}.xl-fa-no-value{font-size:16px;font-weight:400;}
+  .xl-section{background:#ffff66;font-size:17px;font-weight:700;border-top:2px solid #111;border-bottom:2px solid #111;padding:3px 5px;}
+  .xl-summary-title{background:#2f75b5;color:#fff;font-size:18px;font-weight:700;justify-content:center;border:2px solid #111;}
+  .xl-label{background:#a6a6a6;color:#0018d4;font-weight:500;}
+  .xl-colon{background:#a6a6a6;color:#0018d4;justify-content:center;}
+  .xl-value{background:#ddebf7;color:#111;}
+  .xl-summary-label{background:#2f75b5;color:#fff;}
+  .xl-summary-colon{background:#2f75b5;color:#fff;justify-content:center;}
+  .xl-summary-value{background:#ddebf7;justify-content:center;}
+  .xl-good{background:#00b050;color:#000;font-weight:800;justify-content:center;font-size:17px;letter-spacing:.08em;border:2px solid #111;}
+  .xl-actual{background:#c00000;color:#000;font-weight:800;justify-content:center;font-size:17px;letter-spacing:.08em;border:2px solid #111;}
+  .xl-sample{height:390px;background:#fff;border:2px solid #111;}
+  .xl-capa-head{background:#ffff66;font-weight:800;font-size:17px;border:2px solid #111;}
+  .xl-capa-note{background:#ffff66;color:#0018ff;font-style:italic;font-weight:700;justify-content:center;font-size:15px;border:2px solid #111;}
+  .xl-gray{background:#a6a6a6;color:#fff;font-style:italic;border:1px solid #111;min-height:38px;}
+  .xl-lot{background:#ffff66;font-weight:800;font-size:17px;border:2px solid #111;}
+  .xl-lot-space{height:330px;background:#fff;border:2px solid #111;}
+  .map-sheet{width:1470px;min-height:610px;padding:0 0 18px;}
+  .map-layout{display:grid;grid-template-columns:220px 1fr;min-height:590px;}
+  .map-list{border-right:2px solid #111;}
+  .map-list table{width:100%;border-collapse:collapse;font-family:"Arial Narrow","Segoe UI",Arial,sans-serif;font-size:15px;}
+  .map-list th{background:#002060;color:#fff;border:1px solid #111;text-align:center;padding:4px;font-size:17px;}
+  .map-list td{border:1px solid #111;text-align:center;height:29px;padding:2px 4px;}
+  .map-canvas{padding:0 16px 20px;background:#fff;}
+  .map-head{display:grid;grid-template-columns:165px 28px 1fr;align-items:center;height:55px;font-size:18px;}
+  .map-bar-title{background:#002060;color:#fff;text-align:center;padding:10px 6px;font-size:22px;}
+  .map-rowbar{text-align:center;border-bottom:2px solid #111;padding:7px;font-size:20px;max-width:320px;}
+  .slider-range{display:grid;gap:0;margin-top:4px;}
+  .slider-box{position:relative;height:44px;border-left:1px solid #111;border-top:1px solid #111;border-bottom:1px solid #111;background:#c6e0b4;text-align:center;font-size:11px;display:flex;align-items:center;justify-content:center;}
+  .slider-box:last-child{border-right:1px solid #111;}
+  .slider-num{position:absolute;top:-24px;left:0;right:0;font-size:13px;}
+  .map-turn{height:74px;border-top:18px solid #002060;border-left:18px solid #002060;border-radius:20px 0 0 0;margin:28px 0 31px 0;position:relative;}
+  .map-turn:after{content:"";position:absolute;left:-28px;bottom:-20px;border-top:15px solid #002060;border-left:14px solid transparent;border-right:14px solid transparent;}
+  .map-legend{margin:150px 0 0 28px;font-size:17px;display:grid;grid-template-columns:36px auto;gap:0 12px;align-items:center;}
+  .legend-swatch{width:36px;height:28px;border:1px solid #222;}
+  .map-empty{padding:20px;color:#555;}
+  .map-slider-note{font-size:13px;color:#444;margin:12px 0 0;}
+  @media(max-width:900px){.preview-pane{max-height:520px}.fa-sheet{transform-origin:top left}.excel-preview-toolbar{position:static}}
+
 </style>
 </head>
 <body>
@@ -1323,102 +1375,90 @@ function collectFaEntries(){
   return faEntries;
 }
 
-function renderFAPreview(){
-  const wrap = $('previewFA');
-  const inspNo = state.lastInspectionNo || '(not recorded yet)';
+function faPreviewData(){
   const faEntries = collectFaEntries();
-  if(faEntries.length===0){
-    wrap.innerHTML = '<p class="preview-empty">No defect codes selected — FA sheets will be empty.</p>';
-    return;
-  }
   const barU = ($('cmbBarType').value||'').toUpperCase().trim();
   const inspQ = parseInt($('txtInspectedQty').value,10)||0;
   const totalDef = faEntries.reduce((s,e)=>s+e.qty,0);
   const totalSlider = barU==='MIDDLE BAR' ? 75 : barU==='LONG BAR' ? 90 : inspQ;
-  const headerRows = [
-    ['FA No.', 'FA'+inspNo],
-    ['Work Week', $('txtWeekNo').value],
-    ['Date', $('txtDate').value],
-    ['Time Inspected', $('txtTimeInspected').value],
-    ['Feedback Time', $('txtFeedbackTime').value],
-    ['Area', $('cmbArea').value],
-    ['Process', $('cmbProcess').value],
-    ['Project', $('cmbProject').value],
-    ['Model', $('cmbModel').value],
-    ['Wafer No.', $('cmbWaferNo').value],
-    ['Layer+Block+RB', $('txtBlock').value],
-    ['Bar Type', $('cmbBarType').value],
-    ['Channel', $('cmbChannel').value],
-    ['Lens Mag', $('cmbLensMag').value],
-    ['Tray Type / No.', ($('cmbTrayType').value||'')+' / '+($('txtTrayNo').value||'')],
-    ['Unit No.', $('txtUnitNo').value],
-    ['Middle Bar (Qty)', barU==='MIDDLE BAR' ? String(totalSlider) : '0'],
-    ['Long Bar (Qty)', barU==='LONG BAR' ? String(totalSlider) : '0'],
-    ['Total Slider Quantity', String(totalSlider)],
-    ['Total Defected Slider', String(totalDef)],
-    ['Total Rejection Rate', $('txtRejectRate').value],
-    ['Operator', $('txtProductionOperator').value],
-    ['Verified By (PE)', $('txtProductionPIC').value],
-    ['Process Engineer', $('cmbPEngineer').value],
-    ['QA Inspector', $('cmbInspector').value],
-    ['QA Technician', $('cmbTechnician').value],
-    ['Shift', $('cmbShift').value],
-    ['Remarks', $('txtRemarks').value]
+  return {faEntries, barU, totalDef, totalSlider};
+}
+function faCell(cls, value, col, row, extra=''){
+  return `<div class="xl-cell ${cls}" style="grid-column:${col};grid-row:${row};${extra}">${escapeHtml(value)}</div>`;
+}
+function renderFAPreview(selectedIndex){
+  const wrap = $('previewFA');
+  const {faEntries,barU,totalDef,totalSlider} = faPreviewData();
+  if(faEntries.length===0){ wrap.innerHTML='<p class="preview-empty">No defect codes selected.</p>'; return; }
+  const idx = Math.max(0, Math.min(Number.isInteger(selectedIndex)?selectedIndex:Number(wrap.dataset.faIndex||0), faEntries.length-1));
+  wrap.dataset.faIndex=String(idx);
+  const entry=faEntries[idx], inspNo=state.lastInspectionNo||'(not recorded yet)';
+  const selector = faEntries.length>1 ? `<div class="excel-preview-toolbar"><label>FA SHEET</label><select id="faPreviewSelect">${faEntries.map((e,i)=>`<option value="${i}" ${i===idx?'selected':''}>${escapeHtml(e.code)} — Qty ${e.qty}</option>`).join('')}</select><span class="hint">Preview ${idx+1} of ${faEntries.length}</span></div>` : '';
+  let h=selector+'<div class="excel-sheet fa-sheet"><div class="fa-grid">';
+  h+=faCell('xl-logo','TDK','1 / 3','1 / 3');
+  h+=faCell('xl-title','QA FAILURE ALERT','3 / 10','1 / 3');
+  h+=faCell('xl-fa-no-label','QA FA NO.','10 / 14','1');
+  h+=faCell('xl-fa-no-value','FA'+inspNo,'10 / 14','2');
+  h+=faCell('xl-section','General Information','1 / 10','3');
+  h+=faCell('xl-summary-title','Inspection Summary','10 / 14','3');
+  const left=[
+    ['Work Week',$('txtWeekNo').value,'Project',$('cmbProject').value,'Prod. Operator',$('txtProductionOperator').value],
+    ['Date',$('txtDate').value,'Model',$('cmbModel').value,'Verified By',$('txtProductionPIC').value],
+    ['Time Inspected',$('txtTimeInspected').value,'Wafer No.',$('cmbWaferNo').value,'Process Engineer',$('cmbPEngineer').value],
+    ['Feedback Time',$('txtFeedbackTime').value,'Lens Mag',$('cmbLensMag').value,'QA Inspector',$('cmbInspector').value],
+    ['Inspection Area',$('cmbArea').value,'','', 'QA Technician',$('cmbTechnician').value],
+    ['Inspection Process',$('cmbProcess').value,'','', 'Shift',$('cmbShift').value],
+    ['Remarks',$('txtRemarks').value,'','','','']
   ];
-  let html = '';
-  faEntries.forEach((entry, idx)=>{
-    html += `<div class="pv-block"><h4>FA sheet ${idx+1}: ${escapeHtml(entry.code)}</h4>`;
-    html += '<table><tbody>';
-    for(const [lab,val] of headerRows){
-      html += `<tr><td class="pv-label">${escapeHtml(lab)}</td><td>${escapeHtml(val)}</td></tr>`;
-    }
-    html += `<tr><td class="pv-label">Defect Code</td><td><strong>${escapeHtml(entry.code)}</strong></td></tr>`;
-    html += `<tr><td class="pv-label">Description</td><td>${escapeHtml(entry.desc)}</td></tr>`;
-    html += `<tr><td class="pv-label">Qty</td><td>${entry.qty}</td></tr>`;
-    html += '</tbody></table></div>';
-  });
-  wrap.innerHTML = html;
+  left.forEach((r,i)=>{const y=4+i;h+=faCell('xl-label',r[0],'1',y)+faCell('xl-colon',':','2',y)+faCell('xl-value',r[1],r[0]==='Inspection Process'||r[0]==='Remarks'?'3 / 7':'3 / 4',y);if(r[2])h+=faCell('xl-label',r[2],'4',y)+faCell('xl-colon',':','5',y)+faCell('xl-value',r[3],'6 / 7',y);if(r[4])h+=faCell('xl-label',r[4],'7',y)+faCell('xl-colon',':','8',y)+faCell('xl-value',r[5],'9 / 10',y);});
+  const summary=[['Tray Type',$('cmbTrayType').value],['Tray No.',$('txtTrayNo').value],['Middle Bar (Qty)',barU==='MIDDLE BAR'?totalSlider:''],['Long Bar (Qty)',barU==='LONG BAR'?totalSlider:''],['Total Slider Quantity',totalSlider],['Total Defected Slider',totalDef],['Total Rejection Rate (%)','#DIV/0!']];
+  summary.forEach((r,i)=>{const y=4+i;h+=faCell('xl-summary-label',r[0],'10 / 12',y)+faCell('xl-summary-colon',':','12',y)+faCell('xl-summary-value',String(r[1]),'13',y);});
+  h+=faCell('xl-section','Defect Information','1 / 14','11');
+  const d1=[['Rowbar No.',($('cmbWaferNo').value||'')+($('txtBlock').value||'')],['Bar Type',$('cmbBarType').value],['Unit No.',$('txtUnitNo').value],['Channel',$('cmbChannel').value]];
+  d1.forEach((r,i)=>{const c=1+i*3;h+=faCell('xl-label',r[0],String(c),12)+faCell('xl-colon',':',String(c+1),12)+faCell('xl-value',r[1],i===3?'12 / 14':String(c+2),12);});
+  h+=faCell('xl-label','Defect Code','1',13)+faCell('xl-colon',':','2',13)+faCell('xl-value',entry.code,'3',13)+faCell('xl-label','Defect Description','4',13)+faCell('xl-colon',':','5',13)+faCell('xl-value',entry.desc,'6 / 10',13)+faCell('xl-label','Defect Qty.','10 / 12',13)+faCell('xl-colon',':','12',13)+faCell('xl-value',String(entry.qty),'13',13);
+  h+=faCell('xl-good','GOOD SAMPLE','1 / 7','14')+faCell('xl-actual','ACTUAL SAMPLE','7 / 14','14');
+  h+=faCell('xl-sample','','1 / 7','15 / 25')+faCell('xl-sample','','7 / 14','15 / 25');
+  h+=faCell('xl-capa-head','Corrective/Preventive Action (CAPA)','1 / 7','25')+faCell('xl-capa-note','Incoming Defect (No Need to Answer CAPA)','7 / 14','25');
+  h+=faCell('xl-gray','Possible Root Cause:','1 / 14','26')+faCell('xl-gray','Corrective Action (Containment/Immediate Action):','1 / 14','27 / 29')+faCell('xl-gray','Preventive Action: (To Prevent Recurrence):','1 / 14','29 / 31')+faCell('xl-gray','Process PIC:                         Reviewed & Confirmed By (Process Engr/Sup/Manager):                         CAPA Status:','1 / 14','31 / 34')+faCell('xl-gray','Effectiveness Verification(QA):','1 / 14','34 / 36');
+  h+=faCell('xl-lot','LOT HISTORY','1 / 14','36')+faCell('xl-lot-space','','1 / 14','37 / 47');
+  h+='</div></div>';
+  wrap.innerHTML=h;
+  const sel=$('faPreviewSelect'); if(sel) sel.addEventListener('change',e=>renderFAPreview(parseInt(e.target.value,10)||0));
 }
-
+function collectValidMapRows(mapType){
+  const rows=[];
+  const max=mapType==='MB'?75:mapType==='LB'?90:null;
+  for(const entry of collectFaEntries()){
+    for(let r=1;r<=entry.qty;r++){
+      const inp=document.querySelector(`.ocr[data-row="${r}"][data-col="${entry.i}"]`);
+      const raw=inp?inp.value.trim():'';
+      if(!raw) continue;
+      if(max!==null){ const n=Number(raw); if(!Number.isInteger(n)||n<1||n>max) continue; rows.push({code:entry.code,val:String(n),num:n}); }
+      else rows.push({code:entry.code,val:raw,num:null});
+    }
+  }
+  return rows;
+}
+function sliderGrid(start,end,mapBySlider,colors){
+  let h=`<div class="slider-range" style="grid-template-columns:repeat(${end-start+1},minmax(22px,1fr))">`;
+  for(let n=start;n<=end;n++){const item=mapBySlider[n];const bg=item?colors[item.code]:'#c6e0b4';h+=`<div class="slider-box" style="background:${bg}"><span class="slider-num">${n}</span>${item?escapeHtml(item.code):''}</div>`;}
+  return h+'</div>';
+}
 function renderMapPreview(){
-  const wrap = $('previewMap');
-  const mapType = $('mappingType').value;
-  const faEntries = collectFaEntries();
-  const typeLabel = mapType==='MB' ? 'Rowbar Level (Middle Bar)' : mapType==='LB' ? 'Rowbar Level (Long Bar)' : 'Slider Level';
-  if(faEntries.length===0){
-    wrap.innerHTML = '<p class="preview-empty">No defect codes — mapping rows will be empty.</p>';
-    return;
-  }
-  let html = `<h4>Mapping — ${escapeHtml(typeLabel)}</h4>`;
-  html += `<p class="hint" style="margin:0 0 8px">Wafer+Block: <strong>${escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))}</strong>`;
+  const wrap=$('previewMap'), mapType=$('mappingType').value, rows=collectValidMapRows(mapType);
+  if(collectFaEntries().length===0){wrap.innerHTML='<p class="preview-empty">No defect codes selected.</p>';return;}
   if(mapType==='SLIDER'){
-    html += ` &nbsp;·&nbsp; Tray No: <strong>${escapeHtml($('txtTrayNo').value||'')}</strong>`;
-    html += ` &nbsp;·&nbsp; Output Qty: <strong>${escapeHtml($('txtOutputQty').value||'')}</strong>`;
-    html += `<br><span style="color:var(--muted)">Only defected OCR Nos. · Yellow Row/Col cells filled manually after export.</span>`;
-  } else {
-    html += `<br><span style="color:var(--muted)">Export writes the list below <strong>and</strong> marks each slider number on the ${mapType==='MB'?'1–75':'1–90'} grid.</span>`;
+    let h='<div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>OCR Number</th><th>Row</th><th>Col</th></tr></thead><tbody>';
+    rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td><td></td><td></td></tr>`);h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">Slider Level</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div><p class="map-slider-note">Row No. and Column No. remain for manual entry in the exported mapping sheet.</p></div></div></div>';wrap.innerHTML=h;return;
   }
-  html += '</p>';
-  html += '<table><thead><tr><th>#</th><th>Defect Code</th><th>OCR / Slider No.</th>';
-  if(mapType==='SLIDER') html += '<th class="preview-highlight">Row No.</th><th class="preview-highlight">Col No.</th>';
-  html += '</tr></thead><tbody>';
-  let r = 1;
-  for(const entry of faEntries){
-    for(let ocrRow=1; ocrRow<=entry.qty; ocrRow++){
-      const inp = document.querySelector(`.ocr[data-row="${ocrRow}"][data-col="${entry.i}"]`);
-      const val = inp ? inp.value.trim() : '';
-      if(!val) continue;
-      html += `<tr><td>${r}</td><td>${escapeHtml(entry.code)}</td><td>${escapeHtml(val)}</td>`;
-      if(mapType==='SLIDER') html += '<td class="preview-highlight"></td><td class="preview-highlight"></td>';
-      html += '</tr>';
-      r++;
-    }
-  }
-  if(r===1) html += '<tr><td colspan="5" class="preview-empty">No OCR / Slider numbers entered yet.</td></tr>';
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  const max=mapType==='MB'?75:90, split=mapType==='LB'?45:max, title=mapType==='MB'?'Middle Bar':'Long Bar';
+  const palette=['#ff1a1a','#ffc000','#00b0f0','#92d050','#7030a0','#ff66cc']; const colors={}; collectFaEntries().forEach((e,i)=>colors[e.code]=palette[i%palette.length]);
+  const mapBy={}; rows.forEach(x=>mapBy[x.num]=x);
+  let h='<div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>Slider<br>Number:</th></tr></thead><tbody>';
+  rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td></tr>`); for(let i=rows.length;i<20;i++)h+='<tr><td>&nbsp;</td><td></td><td></td></tr>'; h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">'+title+'</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div>';
+  h+=sliderGrid(1,split,mapBy,colors); if(split<max){h+='<div class="map-turn"></div>'+sliderGrid(split+1,max,mapBy,colors);} h+='<div class="map-legend"><strong style="grid-column:1/3;margin-bottom:5px">Legend;</strong><span class="legend-swatch" style="background:#c6e0b4"></span><span>Sampling Size</span>'; Object.keys(colors).forEach(code=>h+=`<span class="legend-swatch" style="background:${colors[code]}"></span><span>${escapeHtml(code)}</span>`); h+='</div></div></div></div>';wrap.innerHTML=h;
 }
-
 function escapeHtml(s){
   return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1737,14 +1777,9 @@ async function generateFAMapping(){
     const mapSheetData = mapDoc.getElementsByTagName('sheetData')[0];
 
     // Build list of defected slider/OCR values (only defected — answer 2A)
-    const mapRows = [];
-    for(const entry of faEntries){
-      for(let ocrRow=1; ocrRow<=entry.qty; ocrRow++){
-        const inp = document.querySelector(`.ocr[data-row="${ocrRow}"][data-col="${entry.i}"]`);
-        const val = inp ? inp.value.trim() : '';
-        if(val) mapRows.push({code: entry.code, val});
-      }
-    }
+    // Use the same strict mapping rows shown in the HTML preview.
+    // MB accepts 1-75, LB accepts 1-90; defect codes can never become slider numbers.
+    const mapRows = collectValidMapRows(mapType).map(x=>({code:x.code, val:x.val}));
 
     // (C) List in columns A/B/C for all mapping types
     let r = 2;
