@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PhotoVac QA Data Entry</title>
+<title>QA Data Entry</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -281,7 +281,7 @@
 </div>
 
 <header>
-  <h1><span class="logo-dot"></span> PhotoVac · QA Data Entry</h1>
+  <h1><span class="logo-dot"></span> QA Data Entry System</h1>
   <div class="toolbar">
     <select class="theme-select" id="themeSelect" title="Theme">
       <option value="light">Light Blue</option>
@@ -296,19 +296,18 @@
       <option value="slate">Slate (dark)</option>
       <option value="plum">Plum (dark)</option>
     </select>
-    <span class="status" id="fileStatus">No database file connected</span>
-    <button class="btn-primary" id="btnOpen">Open Database</button>
+    <span class="status" id="fileStatus">No Main Folder connected</span>
+    <button class="btn-primary" id="btnOpen">Open Main Folder</button>
     <button class="btn-ghost" id="btnClear" style="display:none" title="Clear form fields">Clear</button>
   </div>
 </header>
 
 <div id="lockedMsg" class="locked-msg">
-  <p style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:8px;">Connect your database to begin</p>
-  <p>Open your <strong>1_PhotoVac.xlsm</strong> (or .xlsx) file to start entering inspections.<br>
-  It must be a copy converted from the original .xlsb — this tool writes new rows straight back into that file.</p>
+  <p style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:8px;">Connect the Main Folder to begin</p>
+  <p>Select the <strong>Main Folder</strong> containing <strong>Reference.xlsx</strong>, the area data workbooks, and the <strong>Failure Alert</strong> folder.<br>Records are written to the workbook matching the selected Area of Inspection.</p>
   <p class="hint">Works in Chrome or Edge only (File System Access API). Your browser will ask for write access the first time.</p>
   <p class="hint" id="draftNotice" style="display:none;margin-top:10px;color:var(--blue-deep);font-weight:600;">A draft from your last session was saved. Open the same database file to restore it.</p>
-  <button class="btn-primary" style="background:var(--blue);color:#fff;padding:10px 22px;font-size:13px" id="btnOpen2">Open Database File</button>
+  <button class="btn-primary" style="background:var(--blue);color:#fff;padding:10px 22px;font-size:13px" id="btnOpen2">Open Main Folder</button>
 </div>
 
 <div id="formWrap" class="app-shell" style="display:none">
@@ -327,7 +326,7 @@
     </nav>
     <div class="sidebar-foot">
       Switch panels anytime.<br>
-      Reference changes write into the open database file.
+      Reference changes write into Reference.xlsx.
     </div>
   </aside>
 
@@ -476,7 +475,7 @@
           <h2><span class="sec-num">R</span> Reference — Add data</h2>
         </div>
         <div class="card-body">
-          <p class="hint">Add a value to a REFERENCE column (dropdown lists). It is written into the open database file and dropdowns refresh immediately.</p>
+          <p class="hint">Add a value to a REFERENCE column (dropdown lists). It is written into Reference.xlsx and dropdowns refresh immediately.</p>
           <div class="grid" style="margin-top:10px">
             <div class="field" style="grid-column:1/-1;max-width:320px">
               <label>List to update</label>
@@ -537,7 +536,21 @@ const REQUIRED_IDS = ['txtWeekNoRaw','cmbArea','txtDate','cmbProcess','txtTimeIn
 const DRAFT_KEY = 'photovac-draft-v1';
 const PERSONNEL_KEY = 'photovac-personnel-v1';
 
-let state = { wb:null, handle:null, fileName:'', ext:'xlsx', refLists:null, defectMap:null, lastInspectionNo:null, rawBuffer:null, counterValue:0 };
+const DATA_FILE_CANDIDATES = {
+  'PHOTOVAC': ['PhotoVac.xlsx', 'PhotoVac.xlsm'],
+  'HW': ['PQC1.xlsx', 'PQC1.xlsm'],
+  'PQC1': ['PQC1.xlsx', 'PQC1.xlsm'],
+  'PQC2': ['PQC2.xlsx', 'PQC2.xlsm'],
+  'WAFER 1': ['Wafer Lapping.xlsx', 'Wafer Lapping.xlsm'],
+  'WAFER 2': ['Wafer Lapping.xlsx', 'Wafer Lapping.xlsm'],
+  'WAFER LAPPING': ['Wafer Lapping.xlsx', 'Wafer Lapping.xlsm']
+};
+let state = {
+  rootHandle:null, failureAlertHandle:null,
+  refWb:null, refHandle:null, refRawBuffer:null,
+  wb:null, handle:null, fileName:'', ext:'xlsx', rawBuffer:null,
+  loadedArea:'', refLists:null, defectMap:null, lastInspectionNo:null, counterValue:0
+};
 let draftTimer = null;
 
 const $ = id => document.getElementById(id);
@@ -574,7 +587,7 @@ function colValues(aoa, colIdx1based){
 }
 
 function loadReferenceLists(){
-  const ws = state.wb.Sheets['REFERENCE'];
+  const ws = state.refWb.Sheets['REFERENCE'];
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
   const lists = {};
   for(const key of ['shift','area','process','checking','channel','barType','lensMag','trayType','inspector','technician','project','model','waferNo','pEngineer']){
@@ -1109,6 +1122,8 @@ async function saveEntry(){
   $('btnSave').disabled = true;
   showLoading('Saving inspection...');
   try{
+    const selectedArea = ($('cmbArea').value || '').trim();
+    await ensureDataWorkbookForArea(selectedArea);
     const areaC = areaCode();
     if(areaC==='UNK'){ showBanner('Unrecognized Area of Inspection — cannot generate Inspection No.', 'warn'); $('btnSave').disabled=false; return; }
     // Next sequence = highest already in QALM for this Area+Date+Shift, +1
@@ -1118,14 +1133,8 @@ async function saveEntry(){
 
     const zip = await JSZip.loadAsync(state.rawBuffer);
     const sheetMap = await getWorkbookSheetMap(zip);
-    const refPath = sheetMap['REFERENCE'], qalmPath = sheetMap['QALM'], popPath = sheetMap['Populated Record'];
-    if(!refPath || !qalmPath || !popPath){ throw new Error('Could not locate REFERENCE / QALM / Populated Record in the file.'); }
-
-    // Keep REFERENCE!Q2 in sync for any remaining VBA tools
-    const refXml = await zf(zip, refPath);
-    const refDoc = new DOMParser().parseFromString(refXml, 'application/xml');
-    setCellValue(refDoc, refDoc.getElementsByTagName('sheetData')[0], 'Q2', seq);
-    zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
+    const qalmPath = sheetMap['QALM'], popPath = sheetMap['Populated Record'];
+    if(!qalmPath || !popPath){ throw new Error('Could not locate QALM / Populated Record in the selected area workbook.'); }
 
     const qalmXml = await zf(zip, qalmPath);
     const qalmDoc = new DOMParser().parseFromString(qalmXml, 'application/xml');
@@ -1505,7 +1514,7 @@ function refreshRefCurrentList(){
 }
 
 async function addToReference(){
-  if(!state.handle || !state.rawBuffer){ $('refStatus').textContent = 'Open a database file first.'; return; }
+  if(!state.refHandle || !state.refRawBuffer){ $('refStatus').textContent = 'Open the Main Folder first.'; return; }
   const key = $('refListKey').value;
   const meta = REF_LIST_META[key];
   const val = ($('refNewValue').value||'').trim();
@@ -1521,7 +1530,7 @@ async function addToReference(){
   $('refStatus').textContent = 'Writing...';
   showLoading('Updating REFERENCE...');
   try{
-    const zip = await JSZip.loadAsync(state.rawBuffer);
+    const zip = await JSZip.loadAsync(state.refRawBuffer);
     const sheetMap = await getWorkbookSheetMap(zip);
     const refPath = sheetMap['REFERENCE'];
     if(!refPath) throw new Error('REFERENCE sheet not found.');
@@ -1543,12 +1552,12 @@ async function addToReference(){
     }
     zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
     const out = await zip.generateAsync({type:'uint8array'});
-    const writable = await state.handle.createWritable();
+    const writable = await state.refHandle.createWritable();
     await writable.write(out);
     await writable.close();
-    state.rawBuffer = out;
+    state.refRawBuffer = out;
     // Refresh in-memory lists + form dropdowns
-    state.wb = XLSX.read(out, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
+    state.refWb = XLSX.read(out, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
     loadReferenceLists();
     // Re-fill selects without wiping current form choices
     const keep = {};
@@ -1625,7 +1634,7 @@ async function generateFAMapping(){
   showLoading('Building FA & Mapping draft...');
 
   try{
-    const srcZip = await JSZip.loadAsync(state.rawBuffer);
+    const srcZip = await JSZip.loadAsync(state.refRawBuffer);
     const sheetMap = await getWorkbookSheetMap(srcZip);
     const faPath = sheetMap['FA Format'];
     const mapPath = sheetMap[templateName];
@@ -1839,67 +1848,106 @@ async function generateFAMapping(){
 
     const fileName = `FA_${cleanFileName(inspNo)}_${codesForFile.join('_')}.xlsx`;
     const out = await outZip.generateAsync({type:'uint8array'});
-    if(window.showSaveFilePicker){
-      const handle = await window.showSaveFilePicker({suggestedName: fileName,
-        types:[{description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
-      const writable = await handle.createWritable();
-      await writable.write(out);
-      await writable.close();
-    } else {
-      const blob = new Blob([out], {type:'application/octet-stream'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = fileName; a.click();
-    }
+    if(!state.failureAlertHandle) throw new Error('Failure Alert folder was not found inside the Main Folder.');
+    const faFileHandle = await state.failureAlertHandle.getFileHandle(fileName, {create:true});
+    const writable = await faFileHandle.createWritable();
+    await writable.write(out);
+    await writable.close();
     $('faStatus').textContent = mapType==='SLIDER'
-      ? `Saved ${fileName}. Open it and fill Row No. (column D) and Column No. (column E) on the MAPPING sheet, then save.`
-      : `Saved ${fileName}.`;
+      ? `Saved to Failure Alert/${fileName}. Open it and fill Row No. (column D) and Column No. (column E) on the MAPPING sheet, then save.`
+      : `Saved to Failure Alert/${fileName}.`;
   } catch(err){
     if(err.name !== 'AbortError'){ console.error(err); $('faStatus').textContent = 'Error generating draft: '+err.message; }
   }
   hideLoading();
 }
 
-// ---------- File open ----------
+// ---------- Main Folder and workbook routing ----------
+async function getFileHandleByCandidates(dirHandle, candidates){
+  for(const name of candidates){
+    try{ return await dirHandle.getFileHandle(name); }catch(err){ if(err.name !== 'NotFoundError') throw err; }
+  }
+  return null;
+}
+
+async function loadReferenceWorkbook(){
+  state.refHandle = await getFileHandleByCandidates(state.rootHandle, ['Reference.xlsx','Reference.xlsm']);
+  if(!state.refHandle) throw new Error('Reference.xlsx was not found in the selected Main Folder.');
+  const file = await state.refHandle.getFile();
+  const buf = await file.arrayBuffer();
+  state.refRawBuffer = buf.slice(0);
+  state.refWb = XLSX.read(buf, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
+  for(const need of ['REFERENCE','Mapping Rowbar Level MB','Mapping Rowbar Level LB','Mapping Slider Level','FA Format']){
+    if(!state.refWb.Sheets[need]) throw new Error(`Sheet "${need}" was not found in Reference.xlsx.`);
+  }
+  loadReferenceLists();
+  const counterCellObj = state.refWb.Sheets['REFERENCE'][REF_COLS.counterCell];
+  state.counterValue = counterCellObj ? Number(counterCellObj.v)||0 : 0;
+}
+
+function dataCandidatesForArea(area){
+  const key = String(area||'').trim().toUpperCase();
+  return DATA_FILE_CANDIDATES[key] || [`${String(area||'').trim()}.xlsx`, `${String(area||'').trim()}.xlsm`];
+}
+
+async function ensureDataWorkbookForArea(area, force=false){
+  const key = String(area||'').trim().toUpperCase();
+  if(!key) throw new Error('Select an Area of Inspection first.');
+  if(!force && state.loadedArea === key && state.handle && state.rawBuffer) return;
+
+  const handle = await getFileHandleByCandidates(state.rootHandle, dataCandidatesForArea(key));
+  if(!handle) throw new Error(`No data workbook was found for ${area}. Expected: ${dataCandidatesForArea(key).join(' or ')}`);
+  const perm = await handle.requestPermission({mode:'readwrite'});
+  if(perm !== 'granted') throw new Error(`Write permission was not granted for ${handle.name}.`);
+
+  showLoading(`Loading ${handle.name}...`);
+  const file = await handle.getFile();
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
+  for(const need of ['QALM','Populated Record']){
+    if(!wb.Sheets[need]) throw new Error(`Sheet "${need}" was not found in ${file.name}.`);
+  }
+  state.handle = handle;
+  state.fileName = file.name;
+  state.ext = file.name.toLowerCase().endsWith('.xlsm') ? 'xlsm' : 'xlsx';
+  state.rawBuffer = buf.slice(0);
+  state.wb = wb;
+  state.loadedArea = key;
+  buildDefectMap();
+  updateComputedInspectionNo();
+  $('fileStatus').textContent = `Reference.xlsx + ${file.name}`;
+}
+
 async function openFile(){
   try{
-    const [handle] = await window.showOpenFilePicker({
-      types: [{description:'Excel Workbook', accept:{
-        'application/vnd.ms-excel.sheet.macroEnabled.12':['.xlsm'],
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']
-      }}]
-    });
-    const perm = await handle.requestPermission({mode:'readwrite'});
-    if(perm !== 'granted'){ showBanner('Write permission was not granted.', 'warn'); return; }
-    showLoading('Loading database file...');
-    const file = await handle.getFile();
-    state.fileName = file.name;
-    state.ext = file.name.toLowerCase().endsWith('.xlsm') ? 'xlsm' : 'xlsx';
-    const buf = await file.arrayBuffer();
-    state.rawBuffer = buf.slice(0);
-    state.wb = XLSX.read(buf, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
-    state.handle = handle;
-
-    for(const need of ['REFERENCE','QALM','Populated Record']){
-      if(!state.wb.Sheets[need]) throw new Error(`Sheet "${need}" not found in this file.`);
+    if(!window.showDirectoryPicker) throw new Error('Open Main Folder requires Microsoft Edge or Google Chrome.');
+    const root = await window.showDirectoryPicker({mode:'readwrite'});
+    const perm = await root.requestPermission({mode:'readwrite'});
+    if(perm !== 'granted'){ showBanner('Folder write permission was not granted.', 'warn'); return; }
+    state.rootHandle = root;
+    showLoading('Loading Reference.xlsx...');
+    await loadReferenceWorkbook();
+    try{
+      state.failureAlertHandle = await root.getDirectoryHandle('Failure Alert');
+    }catch(err){
+      if(err.name === 'NotFoundError') throw new Error('The Failure Alert folder was not found inside the selected Main Folder.');
+      throw err;
     }
-    loadReferenceLists();
-    buildDefectMap(); // also scans QALM Inspection Nos for auto sequence
-    // Q2 kept for VBA compatibility only; next number comes from QALM (max for Area+Date+Shift)
-    const counterCellObj = state.wb.Sheets['REFERENCE'][REF_COLS.counterCell];
-    const initCounter = counterCellObj ? parseInt(counterCellObj.v,10) : 0;
-    state.counterValue = isNaN(initCounter) ? 0 : initCounter;
 
-    $('fileStatus').textContent = `Connected: ${state.fileName}`;
     $('lockedMsg').style.display = 'none';
     $('formWrap').style.removeProperty('display');
     $('formWrap').classList.add('is-open');
     $('btnClear').style.display = 'inline-block';
     populateForm();
     switchPanel('inspection');
+    const initialArea = $('cmbArea').value || 'PHOTOVAC';
+    await ensureDataWorkbookForArea(initialArea, true);
+    showBanner(`Main Folder connected. Reference: Reference.xlsx | Data: ${state.fileName} | FA folder: Failure Alert`, 'ok');
   } catch(err){
-    if(err.name !== 'AbortError'){ console.error(err); alert('Could not open file: '+err.message); }
+    if(err.name !== 'AbortError'){ console.error(err); alert('Could not open Main Folder: '+err.message); }
+  } finally {
+    hideLoading();
   }
-  hideLoading();
 }
 
 // ---------- Wire up ----------
@@ -1931,7 +1979,16 @@ document.querySelectorAll('.preview-tab').forEach(tab=>{
 });
 $('txtDate').addEventListener('change', ()=>{ updateWorkWeek(); updateComputedInspectionNo(); scheduleDraft(); });
 $('txtTimeInspected').addEventListener('change', ()=>{ updateFeedbackTime(); scheduleDraft(); });
-$('cmbArea').addEventListener('change', ()=>{ updateComputedInspectionNo(); scheduleDraft(); });
+$('cmbArea').addEventListener('change', async ()=>{
+  try{
+    if(state.rootHandle) await ensureDataWorkbookForArea($('cmbArea').value);
+    updateComputedInspectionNo();
+  }catch(err){
+    console.error(err);
+    showBanner(err.message, 'warn');
+  }
+  scheduleDraft();
+});
 $('cmbShift').addEventListener('change', ()=>{ updateComputedInspectionNo(); scheduleDraft(); });
 $('txtInspectedQty').addEventListener('input', ()=>{ computeRejectRate(); scheduleDraft(); });
 $('txtRejectQty').addEventListener('input', ()=>{ computeRejectRate(); scheduleDraft(); });
@@ -1987,7 +2044,7 @@ $('themeSelect').addEventListener('change', e=>applyTheme(e.target.value));
   }catch(e){}
 })();
 
-if(!window.showOpenFilePicker){
+if(!window.showDirectoryPicker){
   document.body.innerHTML = '<div class="locked-msg"><h2>Browser not supported</h2><p>This tool needs the File System Access API, available in Chrome or Edge on desktop. Please open this file in one of those browsers.</p></div>';
 }
 </script>
