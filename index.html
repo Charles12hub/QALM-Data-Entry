@@ -67,8 +67,14 @@
   .sidebar-btn.has-alert .sb-badge{display:inline;}
   .sidebar-foot{padding:12px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:12px;line-height:1.4;}
   main{flex:1;max-width:1100px;margin:0 auto;padding:14px 16px 56px;width:100%;overflow-y:auto;height:100%;}
-  .panel-view{display:none;}
-  .panel-view.active{display:block;}
+  .panel-view{
+    display:none;
+    width:100%;
+    min-height:100px;
+  }
+  .panel-view.active{
+    display:block !important;
+  }
   html[data-theme="dark"] .sidebar,
   html[data-theme="slate"] .sidebar,
   html[data-theme="plum"] .sidebar{background:var(--panel);}
@@ -1417,14 +1423,52 @@ function hideFAPreview(){
 
 // ---------- Sidebar panels ----------
 function switchPanel(name){
-  document.querySelectorAll('.panel-view').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active'));
-  const panel = document.getElementById(name==='inspection'?'panelInspection':name==='fa'?'panelFA':'panelReference');
-  const btn = document.querySelector(`.sidebar-btn[data-panel="${name}"]`);
-  if(panel) panel.classList.add('active');
-  if(btn) btn.classList.add('active');
-  if(name==='fa' && state.lastInspectionNo){ renderFAPreview(); renderMapPreview(); }
-  if(name==='reference') refreshRefCurrentList();
+  const panelMap = {
+    inspection: 'panelInspection',
+    fa: 'panelFA',
+    reference: 'panelReference'
+  };
+
+  const targetPanelId = panelMap[name] || 'panelInspection';
+
+  document.querySelectorAll('.panel-view').forEach(panel => {
+    panel.classList.remove('active');
+    panel.style.display = 'none';
+  });
+
+  document.querySelectorAll('.sidebar-btn').forEach(button => {
+    button.classList.remove('active');
+  });
+
+  const targetPanel = document.getElementById(targetPanelId);
+  const targetButton = document.querySelector(`.sidebar-btn[data-panel="${name}"]`);
+
+  if(targetPanel){
+    targetPanel.classList.add('active');
+    targetPanel.style.display = 'block';
+  } else {
+    console.error('Panel not found:', targetPanelId);
+  }
+
+  if(targetButton){
+    targetButton.classList.add('active');
+  } else {
+    console.error('Sidebar button not found:', name);
+  }
+
+  if(name === 'fa' && state.lastInspectionNo){
+    renderFAPreview();
+    renderMapPreview();
+  }
+
+  if(name === 'reference'){
+    refreshRefCurrentList();
+  }
+
+  const mainArea = document.querySelector('main');
+  if(mainArea){
+    mainArea.scrollTop = 0;
+  }
 }
 
 // ---------- Reference add ----------
