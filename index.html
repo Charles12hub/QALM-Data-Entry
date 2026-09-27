@@ -662,14 +662,78 @@ function loadReferenceLists(){
   state.refLists = lists;
 }
 
+function normalizeHeaderName(value){
+  return String(value ?? '')
+    .replace(/\r?\n/g,' ')
+    .replace(/[._]/g,' ')
+    .replace(/\s+/g,' ')
+    .replace(/[^a-zA-Z0-9%+\- ]/g,'')
+    .trim()
+    .toUpperCase();
+}
+const QALM_HEADER_ALIASES = {
+  inspectionNo:['INSPECTION NO','INSPECTION NUMBER','INSPECTION NO.'],
+  workWeek:['WORK WEEK','WORK WEEK NO','WORK WEEK NO.','WEEK NO','WEEK'],
+  inspectionDate:['INSPECTION DATE','DATE'],
+  timeInspected:['TIME INSPECTED','INSPECTION TIME'],
+  feedbackTime:['FEEDBACK TIME'],
+  area:['AREA OF INSPECTION','INSPECTION AREA','AREA'],
+  process:['PROCESS AREA','INSPECTION PROCESS','PROCESS','PROCESSES'],
+  checkingType:['TYPE OF CHECKING','CHECKING TYPE'],
+  shift:['SHIFT'],
+  project:['PROJECT'],
+  model:['MODEL'],
+  waferNo:['WAFER NO','WAFER NO.','RUN/LOT NO','RUN LOT NO','LOT NO'],
+  block:['LAYER + BLOCK + RB NO','LAYER BLOCK RB NO','LAYER/BLOCK/RB NO','LAYER + BLOCK + ROWBAR NO','ROWBAR NO'],
+  rowNo:['ROW NO','ROW NO.','ROW'],
+  trayType:['TRAY TYPE'],
+  trayNo:['TRAY NO','TRAY NO.'],
+  unitNo:['UNIT NO','UNIT NO.'],
+  lensMag:['LENS MAGNIFICATION','LENS MAG','MAGNIFICATION'],
+  channel:['CHANNEL'],
+  barType:['BAR TYPE'],
+  inspectedQty:['INSPECTED QTY','INSPECTED QTY.','INSPECTED QUANTITY','SAMPLE INSPECTED'],
+  outputQty:['OUTPUT QTY','OUTPUT QTY.','OUTPUT QUANTITY'],
+  rejectQty:['REJECT QTY','REJECT QTY.','REJECT QUANTITY'],
+  rejectionRate:['REJECTION RATE','REJECTION RATE %','REJECTION RATE (%)','TOTAL REJECTION RATE (%)'],
+  defectCriteriaCount:['NO OF DEFECT CRITERIA','NO. OF DEFECT CRITERIA','DEFECT CRITERIA COUNT'],
+  productionOperator:['PROD OPERATOR','PROD. OPERATOR','PRODUCTION OPERATOR','OPERATOR'],
+  verifiedBy:['VERIFIED BY','VERIFIED BY (PE)','PRODUCTION PIC'],
+  processEngineer:['PROCESS ENGINEER','PROCESS ENGR'],
+  qaInspector:['QA INSPECTOR','INSPECTOR'],
+  qaTechnician:['QA TECHNICIAN','VERIFIED BY (QA TECH)','QA TECH'],
+  remarks:['REMARKS','REMARK']
+};
+function buildHeaderColumnMap(headerRow, aliases){
+  const byName = new Map();
+  headerRow.forEach((value,index)=>{
+    const key=normalizeHeaderName(value);
+    if(key && !byName.has(key)) byName.set(key,index);
+  });
+  const result={};
+  for(const [field,names] of Object.entries(aliases)){
+    for(const name of names){
+      const idx=byName.get(normalizeHeaderName(name));
+      if(idx!==undefined){ result[field]=idx; break; }
+    }
+  }
+  return result;
+}
 function buildDefectMap(){
   const ws = state.wb.Sheets['QALM'];
   const aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
   const row2 = aoa[1] || [];
+  state.qalmHeaderRow = row2.slice();
+  state.qalmHeaderMap = buildHeaderColumnMap(row2, QALM_HEADER_ALIASES);
+  const requiredQalmHeaders = ['inspectionNo','workWeek','inspectionDate','area','process','inspectedQty','rejectQty','outputQty'];
+  state.qalmMissingHeaders = requiredQalmHeaders.filter(key=>state.qalmHeaderMap[key]===undefined);
   const map = {};
-  for(let c=31;c<row2.length;c++){
+  const standardCols = new Set(Object.values(state.qalmHeaderMap));
+  const knownDefects = new Set((state.refLists && state.refLists.defectCodes || []).map(code=>String(code).trim().toUpperCase()));
+  for(let c=0;c<row2.length;c++){
+    if(standardCols.has(c)) continue;
     const code = (row2[c]||'').toString().trim();
-    if(code) map[code.toUpperCase()] = c;
+    if(code && knownDefects.has(code.toUpperCase())) map[code.toUpperCase()] = c;
   }
   state.defectMap = map;
 
@@ -1196,20 +1260,46 @@ async function saveEntry(){
     const qalmLastCol = Number.isInteger(rawLastCol) && rawLastCol >= 30
       ? Math.min(rawLastCol, 16383)
       : 40;
-    const qalmVals = new Array(qalmLastCol + 1).fill('');
-    const set = (col1based, v) => { qalmVals[col1based-1] = v; };
-    set(1, inspNo); set(2, $('txtWeekNo').value); set(3, dateStr); set(4, $('txtTimeInspected').value);
-    set(5, $('txtFeedbackTime').value); set(6, $('cmbArea').value); set(7, $('cmbProcess').value);
-    set(8, $('cmbTypeChecking').value); set(9, $('cmbShift').value); set(10, $('cmbProject').value);
-    set(11, $('cmbModel').value); set(12, $('cmbWaferNo').value); set(13, $('txtBlock').value);
-    set(14, $('txtRow').value); set(15, $('cmbTrayType').value); set(16, $('txtTrayNo').value);
-    set(17, $('txtUnitNo').value); set(18, $('cmbLensMag').value); set(19, $('cmbChannel').value);
-    set(20, $('cmbBarType').value); set(21, $('txtInspectedQty').value); set(22, $('txtOutputQty').value);
-    set(23, $('txtRejectQty').value); set(24, $('txtRejectRate').value);
-    set(25, $('txtDefectCriteriaCount').value); set(26, $('txtProductionOperator').value);
-    set(27, $('txtProductionPIC').value); set(28, $('cmbPEngineer').value); set(29, $('cmbInspector').value);
-    set(30, $('cmbTechnician').value); set(31, $('txtRemarks').value);
-
+    if(state.qalmMissingHeaders && state.qalmMissingHeaders.length){
+      throw new Error('QALM Row 2 is missing required header(s): '+state.qalmMissingHeaders.join(', '));
+    }
+    const highestHeaderCol = Math.max(30, state.qalmHeaderRow ? state.qalmHeaderRow.length-1 : 30, ...Object.values(state.qalmHeaderMap||{}), ...Object.values(state.defectMap||{}));
+    const qalmVals = new Array(Math.min(highestHeaderCol,16383)+1).fill('');
+    const put = (field,value)=>{
+      const col=state.qalmHeaderMap[field];
+      if(col!==undefined) qalmVals[col]=value;
+    };
+    put('inspectionNo',inspNo);
+    put('workWeek',$('txtWeekNo').value);
+    put('inspectionDate',dateStr);
+    put('timeInspected',$('txtTimeInspected').value);
+    put('feedbackTime',$('txtFeedbackTime').value);
+    put('area',$('cmbArea').value);
+    put('process',$('cmbProcess').value);
+    put('checkingType',$('cmbTypeChecking').value);
+    put('shift',$('cmbShift').value);
+    put('project',$('cmbProject').value);
+    put('model',$('cmbModel').value);
+    put('waferNo',$('cmbWaferNo').value);
+    put('block',$('txtBlock').value);
+    put('rowNo',$('txtRow').value);
+    put('trayType',$('cmbTrayType').value);
+    put('trayNo',$('txtTrayNo').value);
+    put('unitNo',$('txtUnitNo').value);
+    put('lensMag',$('cmbLensMag').value);
+    put('channel',$('cmbChannel').value);
+    put('barType',$('cmbBarType').value);
+    put('inspectedQty',$('txtInspectedQty').value);
+    put('outputQty',$('txtOutputQty').value);
+    put('rejectQty',$('txtRejectQty').value);
+    put('rejectionRate',$('txtRejectRate').value);
+    put('defectCriteriaCount',$('txtDefectCriteriaCount').value);
+    put('productionOperator',$('txtProductionOperator').value);
+    put('verifiedBy',$('txtProductionPIC').value);
+    put('processEngineer',$('cmbPEngineer').value);
+    put('qaInspector',$('cmbInspector').value);
+    put('qaTechnician',$('cmbTechnician').value);
+    put('remarks',$('txtRemarks').value);
     const n = parseInt($('txtDefectCriteriaCount').value,10)||0;
     const defectEntries = [];
     for(let i=1;i<=n;i++){
