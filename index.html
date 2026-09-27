@@ -45,6 +45,7 @@
   .btn-na{background:var(--blue-pale);color:var(--blue-deep);padding:2px 7px;font-size:10px;border-radius:4px;margin-left:4px;font-weight:600;}
   .btn-na:hover{background:var(--blue-mid);color:#fff;}
   .app-shell{display:flex;flex:1;overflow:hidden;min-height:0;}
+  #formWrap.is-open{display:flex !important;}
   .sidebar{
     width:200px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
     padding:12px 0;height:100%;overflow-y:auto;
@@ -67,14 +68,8 @@
   .sidebar-btn.has-alert .sb-badge{display:inline;}
   .sidebar-foot{padding:12px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:12px;line-height:1.4;}
   main{flex:1;max-width:1100px;margin:0 auto;padding:14px 16px 56px;width:100%;overflow-y:auto;height:100%;}
-  .panel-view{
-    display:none;
-    width:100%;
-    min-height:100px;
-  }
-  .panel-view.active{
-    display:block !important;
-  }
+  .panel-view{display:none;width:100%;min-height:100px;}
+  .panel-view.active{display:block !important;}
   html[data-theme="dark"] .sidebar,
   html[data-theme="slate"] .sidebar,
   html[data-theme="plum"] .sidebar{background:var(--panel);}
@@ -727,7 +722,7 @@ function collectDraft(){
 }
 
 function saveDraft(){
-  if(!$('formWrap') || $('formWrap').style.display==='none') return;
+  if(!$('formWrap') || !$('formWrap').classList.contains('is-open')) return;
   try{
     localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
     $('draftStatus').textContent = 'Draft saved';
@@ -1428,47 +1423,34 @@ function switchPanel(name){
     fa: 'panelFA',
     reference: 'panelReference'
   };
-
   const targetPanelId = panelMap[name] || 'panelInspection';
 
   document.querySelectorAll('.panel-view').forEach(panel => {
     panel.classList.remove('active');
     panel.style.display = 'none';
   });
-
   document.querySelectorAll('.sidebar-btn').forEach(button => {
     button.classList.remove('active');
   });
 
   const targetPanel = document.getElementById(targetPanelId);
   const targetButton = document.querySelector(`.sidebar-btn[data-panel="${name}"]`);
-
   if(targetPanel){
     targetPanel.classList.add('active');
     targetPanel.style.display = 'block';
   } else {
     console.error('Panel not found:', targetPanelId);
   }
-
-  if(targetButton){
-    targetButton.classList.add('active');
-  } else {
-    console.error('Sidebar button not found:', name);
-  }
+  if(targetButton) targetButton.classList.add('active');
 
   if(name === 'fa' && state.lastInspectionNo){
     renderFAPreview();
     renderMapPreview();
   }
+  if(name === 'reference') refreshRefCurrentList();
 
-  if(name === 'reference'){
-    refreshRefCurrentList();
-  }
-
-  const mainArea = document.querySelector('main');
-  if(mainArea){
-    mainArea.scrollTop = 0;
-  }
+  const mainArea = document.querySelector('#formWrap main');
+  if(mainArea) mainArea.scrollTop = 0;
 }
 
 // ---------- Reference add ----------
@@ -1895,9 +1877,11 @@ async function openFile(){
 
     $('fileStatus').textContent = `Connected: ${state.fileName}`;
     $('lockedMsg').style.display = 'none';
-    $('formWrap').style.display = 'block';
+    $('formWrap').style.removeProperty('display');
+    $('formWrap').classList.add('is-open');
     $('btnClear').style.display = 'inline-block';
     populateForm();
+    switchPanel('inspection');
   } catch(err){
     if(err.name !== 'AbortError'){ console.error(err); alert('Could not open file: '+err.message); }
   }
@@ -1960,7 +1944,7 @@ document.querySelectorAll('[data-toggle]').forEach(hdr=>{
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey || e.metaKey) && e.key === 's'){
     e.preventDefault();
-    if($('formWrap').style.display!=='none' && !$('btnSave').disabled) saveEntry();
+    if($('formWrap').classList.contains('is-open') && !$('btnSave').disabled) saveEntry();
   }
 });
 
