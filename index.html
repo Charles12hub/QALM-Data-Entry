@@ -607,7 +607,15 @@ function buildDefectMap(){
     if(code) map[code.toUpperCase()] = c;
   }
   state.defectMap = map;
-  state.qalmLastCol = row2.length ? row2.length-1 : 30;
+
+  // Use only the real populated columns in QALM row 2.
+  // A worksheet can contain an oversized used-range because of old formatting.
+  // Using row2.length directly can create an enormous array and cause:
+  // "Invalid array length" during Record Data.
+  const mappedDefectCols = Object.values(map).filter(Number.isInteger);
+  const highestMappedCol = mappedDefectCols.length ? Math.max(...mappedDefectCols) : 30;
+  state.qalmLastCol = Math.max(30, Math.min(highestMappedCol, 16383));
+
   // Collect existing Inspection Nos from column A (used to auto-assign next sequence)
   const nos = [];
   for(let r=0;r<aoa.length;r++){
@@ -1122,8 +1130,12 @@ async function saveEntry(){
     const qalmXml = await zf(zip, qalmPath);
     const qalmDoc = new DOMParser().parseFromString(qalmXml, 'application/xml');
     const qalmSheetData = qalmDoc.getElementsByTagName('sheetData')[0];
-    const qalmLastCol = Number.isFinite(state.qalmLastCol) && state.qalmLastCol >= 0 ? state.qalmLastCol : 40;
-    const qalmVals = new Array(qalmLastCol+1).fill('');
+    // Guard the array size even when the workbook has an oversized/corrupt used-range.
+    const rawLastCol = Number(state.qalmLastCol);
+    const qalmLastCol = Number.isInteger(rawLastCol) && rawLastCol >= 30
+      ? Math.min(rawLastCol, 16383)
+      : 40;
+    const qalmVals = new Array(qalmLastCol + 1).fill('');
     const set = (col1based, v) => { qalmVals[col1based-1] = v; };
     set(1, inspNo); set(2, $('txtWeekNo').value); set(3, dateStr); set(4, $('txtTimeInspected').value);
     set(5, $('txtFeedbackTime').value); set(6, $('cmbArea').value); set(7, $('cmbProcess').value);
