@@ -278,16 +278,16 @@
   .excel-sheet{background:#fff;color:#000;border:2px solid #001a66;box-shadow:0 2px 9px rgba(0,0,0,.18);font-family:"Arial Narrow","Segoe UI",Arial,sans-serif;margin:0 auto;}
   .fa-sheet{width:1180px;min-height:1380px;}
   .fa-grid{display:grid;grid-template-columns:1.05fr .05fr 1.05fr .05fr 1.05fr .05fr 1.05fr .05fr 1.15fr .05fr 1.05fr .05fr 1.55fr;grid-auto-rows:minmax(28px,auto);}
-  .xl-cell{border-right:1px solid #8092a6;border-bottom:1px solid #8092a6;padding:4px 6px;display:flex;align-items:center;min-width:0;overflow:hidden;white-space:normal;line-height:1.15;}
+  .xl-cell{border-right:1px solid #8092a6;border-bottom:1px solid #8092a6;padding:5px 8px;display:flex;align-items:center;min-width:0;overflow:hidden;white-space:normal;line-height:1.3;font-size:14px;}
   .xl-title{background:#ffff00;font-size:27px;justify-content:center;font-weight:500;border-bottom:2px solid #111;min-height:58px;}
   .xl-logo{background:#ffff00;color:#0658bb;font-size:27px;font-weight:900;justify-content:center;border-right:2px solid #111;border-bottom:2px solid #111;}
   .xl-fa-no-label,.xl-fa-no-value{background:#ffff00;justify-content:center;border-left:2px solid #111;border-bottom:1px solid #111;font-weight:700;}
   .xl-fa-no-label{font-size:15px;}.xl-fa-no-value{font-size:16px;font-weight:400;}
   .xl-section{background:#ffff66;font-size:17px;font-weight:700;border-top:2px solid #111;border-bottom:2px solid #111;padding:3px 5px;}
   .xl-summary-title{background:#2f75b5;color:#fff;font-size:18px;font-weight:700;justify-content:center;border:2px solid #111;}
-  .xl-label{background:#a6a6a6;color:#0018d4;font-weight:500;}
+  .xl-label{background:#a6a6a6;color:#0018d4;font-weight:700;}
   .xl-colon{background:#a6a6a6;color:#0018d4;justify-content:center;}
-  .xl-value{background:#ddebf7;color:#111;}
+  .xl-value{background:#ddebf7;color:#111;font-weight:600;}
   .xl-summary-label{background:#2f75b5;color:#fff;}
   .xl-summary-colon{background:#2f75b5;color:#fff;justify-content:center;}
   .xl-summary-value{background:#ddebf7;justify-content:center;}
@@ -309,10 +309,11 @@
   .map-head{display:grid;grid-template-columns:165px 28px 1fr;align-items:center;height:55px;font-size:18px;}
   .map-bar-title{background:#002060;color:#fff;text-align:center;padding:10px 6px;font-size:22px;}
   .map-rowbar{text-align:center;border-bottom:2px solid #111;padding:7px;font-size:20px;max-width:320px;}
-  .slider-range{display:grid;gap:0;margin-top:4px;}
+  .slider-range{display:grid;gap:0;margin-top:32px;} /* room for the number row so the title box no longer hides sliders 1-8 */
   .slider-box{position:relative;height:44px;border-left:1px solid #111;border-top:1px solid #111;border-bottom:1px solid #111;background:#c6e0b4;text-align:center;font-size:11px;display:flex;align-items:center;justify-content:center;}
   .slider-box:last-child{border-right:1px solid #111;}
   .slider-num{position:absolute;top:-24px;left:0;right:0;font-size:13px;}
+  .slider-code{writing-mode:vertical-rl;font-size:10.5px;font-weight:700;line-height:1;max-height:100%;overflow:hidden;white-space:nowrap;} /* vertical so adjacent flagged sliders never overlap */
   .map-turn{height:74px;border-top:18px solid #002060;border-left:18px solid #002060;border-radius:20px 0 0 0;margin:28px 0 31px 0;position:relative;}
   .map-turn:after{content:"";position:absolute;left:-28px;bottom:-20px;border-top:15px solid #002060;border-left:14px solid transparent;border-right:14px solid transparent;}
   .map-legend{margin:150px 0 0 28px;font-size:17px;display:grid;grid-template-columns:36px auto;gap:0 12px;align-items:center;}
@@ -339,8 +340,8 @@
   .fa-grid{grid-template-columns:150px 18px 190px 150px 18px 190px 155px 18px 190px 170px 18px 100px 165px!important;}
   .xl-cell{white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;min-height:29px;}
   .xl-value,.xl-summary-value{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
-  .fa-sheet{width:1500px!important;}
-  .map-sheet{width:1500px!important;}
+  .fa-sheet{width:1532px!important;} /* must equal the sum of the fixed .fa-grid column tracks above */
+  .map-sheet{width:max-content!important;min-width:1500px;} /* frame grows to fit the slider strip (75 x 22px + list column) instead of clipping it */
   @media(max-width:900px){.preview-pane{height:calc(100vh - 320px)}.workbook-select{min-width:140px}}
 
 </style>
@@ -658,6 +659,13 @@ window.addEventListener('unhandledrejection', e => showFatalError((e.reason && e
 
 function XLSXrc(r,c){ return XLSX.utils.encode_cell({r,c}); }
 
+// The original VBA stored Inspection Date as a REAL Excel date (serial number), not text —
+// text dates sort/filter/pivot wrongly in Excel. Style (dd/mmm/yy) comes from the previous row.
+function excelDateSerial(iso){
+  const d = parseLocalInputDate(iso);
+  if(!d || isNaN(d)) return null;
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899,11,30)) / 86400000);
+}
 function parseLocalInputDate(str){
   if(!str) return null;
   const [y,m,d] = str.split('-').map(Number);
@@ -763,6 +771,11 @@ function buildDefectMap(){
   state.qalmHeaderMap = buildHeaderColumnMap(row2, QALM_HEADER_ALIASES);
   const requiredQalmHeaders = ['inspectionNo','workWeek','inspectionDate','area','process','inspectedQty','rejectQty','outputQty'];
   state.qalmMissingHeaders = requiredQalmHeaders.filter(key=>state.qalmHeaderMap[key]===undefined);
+  // Every OTHER field the app writes into QALM — if its header isn't found either, put() below
+  // silently drops that value every single save with no record it ever happened. Track these
+  // separately (warn, don't block) so the person can see exactly what's not being saved.
+  const allQalmFields = Object.keys(QALM_HEADER_ALIASES);
+  state.qalmOptionalMissingHeaders = allQalmFields.filter(key=>!requiredQalmHeaders.includes(key) && state.qalmHeaderMap[key]===undefined);
   const map = {};
   const standardCols = new Set(Object.values(state.qalmHeaderMap));
   const knownDefects = new Set((state.refLists && state.refLists.defectCodes || []).map(code=>String(code).trim().toUpperCase()));
@@ -1089,8 +1102,10 @@ async function getWorkbookSheetMap(zip){
     relMap[r.getAttribute('Id')] = r.getAttribute('Target');
   });
   const sheetMap = {};
+  const sheetOrder = []; // [name, ...] in workbook order — needed to resolve localSheetId
   Array.from(wbDoc.getElementsByTagName('sheet')).forEach(s=>{
     const name = s.getAttribute('name');
+    sheetOrder.push(name);
     const rid = s.getAttributeNS(RELNS,'id') || s.getAttribute('r:id');
     let target = relMap[rid];
     if(target){
@@ -1098,12 +1113,35 @@ async function getWorkbookSheetMap(zip){
       sheetMap[name] = target;
     }
   });
-  return sheetMap;
+  // Print Area / Print Titles are workbook-level <definedNames> scoped to a sheet by
+  // localSheetId (0-based position in <sheets>). Collect them per source sheet name so
+  // the FA/Mapping export can re-emit them against the new sheet's index.
+  const printDefinedNames = {}; // sheetName -> [{name, value}]
+  Array.from(wbDoc.getElementsByTagName('definedName')).forEach(dn=>{
+    const nm = dn.getAttribute('name');
+    if(nm !== '_xlnm.Print_Area' && nm !== '_xlnm.Print_Titles') return;
+    const localId = dn.getAttribute('localSheetId');
+    if(localId===null) return;
+    const idx = parseInt(localId,10);
+    const sheetName = sheetOrder[idx];
+    if(!sheetName) return;
+    (printDefinedNames[sheetName] = printDefinedNames[sheetName]||[]).push({name:nm, value:(dn.textContent||'').trim()});
+  });
+  return {sheetMap, sheetOrder, printDefinedNames};
 }
 function colLetterToNum(letters){ let n=0; for(const ch of letters) n = n*26 + (ch.charCodeAt(0)-64); return n; }
 function numToColLetter(n){ let s=''; while(n>0){ const rem=(n-1)%26; s=String.fromCharCode(65+rem)+s; n=Math.floor((n-1)/26); } return s; }
 function splitAddr(addr){ const m = addr.match(/^([A-Z]+)(\d+)$/); return {col:m[1], row:parseInt(m[2],10), colNum:colLetterToNum(m[1])}; }
 function escapeXml(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+function remapDefinedNameFormula(formula, oldName, newName){
+  // Print Area/Titles formulas reference the sheet by name, e.g. 'FA Format'!$A$1:$P$20 —
+  // since each generated copy gets a new sheet name, the reference inside the formula
+  // text has to be swapped too, or Excel treats it as pointing at a sheet that doesn't exist.
+  const escapedOld = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(^|,)\\s*(?:'${escapedOld}'|${escapedOld})!`, 'g');
+  const quotedNew = /[^A-Za-z0-9_]/.test(newName) ? `'${newName.replace(/'/g,"''")}'` : newName;
+  return formula.replace(pattern, (m, sep) => `${sep}${quotedNew}!`);
+}
 function looksNumeric(v){ if(v===null||v===undefined) return false; const s=String(v).trim(); return s!=='' && /^-?\d+(\.\d+)?$/.test(s); }
 
 function ensureCell(doc, sheetDataEl, addr){
@@ -1186,7 +1224,66 @@ function appendDataRow(doc, sheetDataEl, values){
   return rowNum;
 }
 
-async function copySheetDrawing(srcZip, outZip, sourceSheetPath, newSheetFileName, addedParts, contentTypesOverrides){
+// ---------- Fast path: string-splice appends (no DOM parse/serialize at all) ----------
+// DOM parse + serialize scales with the sheet's TOTAL existing size — on a 90k+ row
+// Populated Record that gets slower every single day. Splicing text in near the end of
+// the file, using only the last row as a style template, stays fast regardless of how
+// large the sheet has grown, because it never touches the rows above it.
+function extractLastRowInfo(xmlText){
+  const closeIdx = xmlText.lastIndexOf('</sheetData>');
+  if(closeIdx===-1) return {rowNum:0, rowXml:'', insertPos:xmlText.length};
+  const before = xmlText.slice(0, closeIdx);
+  const lastRowOpenIdx = before.lastIndexOf('<row ');
+  if(lastRowOpenIdx===-1) return {rowNum:0, rowXml:'', insertPos:closeIdx};
+  const rowXml = before.slice(lastRowOpenIdx);
+  const rNumMatch = rowXml.match(/<row[^>]*\br="(\d+)"/);
+  const rowNum = rNumMatch ? parseInt(rNumMatch[1],10) : 0;
+  return {rowNum, rowXml, insertPos: closeIdx};
+}
+function styleForColInRow(rowXml, colLetter){
+  if(!rowXml) return null;
+  const re = new RegExp('<c r="'+colLetter+'\\d+"[^>]*?\\bs="(\\d+)"');
+  const m = rowXml.match(re);
+  return m ? m[1] : null;
+}
+function buildRowXmlString(rowNum, values, prevRowXml){
+  let cells = '';
+  values.forEach((val, idx) => {
+    if(val===undefined || val===null || val==='') return;
+    const colLetter = numToColLetter(idx+1);
+    const style = styleForColInRow(prevRowXml, colLetter);
+    const sAttr = style ? ` s="${style}"` : '';
+    if(looksNumeric(val)){
+      cells += `<c r="${colLetter}${rowNum}"${sAttr}><v>${escapeXml(String(val).trim())}</v></c>`;
+    } else {
+      cells += `<c r="${colLetter}${rowNum}"${sAttr} t="inlineStr"><is><t>${escapeXml(String(val))}</t></is></c>`;
+    }
+  });
+  return `<row r="${rowNum}">${cells}</row>`;
+}
+function spliceAppendRows(xmlText, rowsOfValues){
+  // Excel stores a completely empty sheet as a self-closing <sheetData/>; expand it so
+  // there is a closing tag to splice in front of. If neither form exists the file isn't
+  // a worksheet we understand — throw instead of writing a corrupted sheet.
+  if(xmlText.indexOf('</sheetData>')===-1){
+    if(/<sheetData\s*\/>/.test(xmlText)) xmlText = xmlText.replace(/<sheetData\s*\/>/, '<sheetData></sheetData>');
+    else throw new Error('Worksheet structure not recognized (no <sheetData>) — nothing was written.');
+  }
+  const info = extractLastRowInfo(xmlText);
+  let rowNum = Math.max(info.rowNum, 2); // next becomes >= 3, matching the original template floor
+  let prevRowXml = info.rowXml;
+  let appended = '';
+  for(const values of rowsOfValues){
+    rowNum++;
+    const rowXml = buildRowXmlString(rowNum, values, prevRowXml);
+    appended += rowXml;
+    prevRowXml = rowXml; // chain styles across multiple new rows in the same save too
+  }
+  const idx = xmlText.lastIndexOf('</sheetData>');
+  return { xml: xmlText.slice(0, idx) + appended + xmlText.slice(idx), lastRowNum: rowNum };
+}
+
+async function copySheetDependencies(srcZip, outZip, sourceSheetPath, newSheetFileName, addedParts, contentTypesOverrides){
   const parts = sourceSheetPath.split('/'); const fname = parts.pop();
   const srcRelsPath = [...parts, '_rels', fname+'.rels'].join('/');
   const srcRelsFile = srcZip.file(srcRelsPath);
@@ -1194,16 +1291,37 @@ async function copySheetDrawing(srcZip, outZip, sourceSheetPath, newSheetFileNam
   const relsXml = await srcRelsFile.async('string');
   outZip.file(`xl/worksheets/_rels/${newSheetFileName}.rels`, relsXml);
   const relsDoc = new DOMParser().parseFromString(relsXml, 'application/xml');
+  const CT_BY_EXT = {
+    xml: 'application/xml',
+    bin: 'application/vnd.openxmlformats-officedocument.spreadsheetml.printerSettings',
+    vml: 'application/vnd.openxmlformats-officedocument.vmlDrawing'
+  };
+  const TYPE_CT = {
+    drawing: 'application/vnd.openxmlformats-officedocument.drawing+xml',
+    table: 'application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml'
+  };
+  // Copy every relationship target generically (drawings, printerSettings, vmlDrawings,
+  // tables, etc.) so nothing the sheet references gets silently dropped — a missing part
+  // Excel expects is exactly what triggers its "needs repair" prompt.
   for(const rel of Array.from(relsDoc.getElementsByTagName('Relationship'))){
-    if(!/\/drawing$/.test(rel.getAttribute('Type'))) continue;
+    const type = rel.getAttribute('Type')||'';
+    const typeKey = type.split('/').pop();
     const target = rel.getAttribute('Target');
-    const drawingPath = 'xl/' + target.replace(/^(\.\.\/)+/,'');
-    if(!addedParts.has(drawingPath) && srcZip.file(drawingPath)){
-      const drawingXml = await srcZip.file(drawingPath).async('string');
-      outZip.file(drawingPath, drawingXml);
-      addedParts.add(drawingPath);
-      contentTypesOverrides.push(`<Override PartName="/${drawingPath}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
-      const dParts = drawingPath.split('/'); const dName = dParts.pop();
+    if(!target || /^https?:/.test(target)) continue; // external (e.g. hyperlinks) — nothing to copy
+    const path = 'xl/' + target.replace(/^(\.\.\/)+/,'');
+    if(addedParts.has(path) || !srcZip.file(path)) continue;
+    const isBinary = /\.(bin|png|jpe?g|gif|wmf|emf|wdp)$/i.test(path);
+    const content = isBinary ? await srcZip.file(path).async('uint8array') : await srcZip.file(path).async('string');
+    outZip.file(path, content);
+    addedParts.add(path);
+    if(!isBinary){
+      const ext = path.split('.').pop().toLowerCase();
+      const ct = TYPE_CT[typeKey] || CT_BY_EXT[ext] || 'application/xml';
+      contentTypesOverrides.push(`<Override PartName="/${path}" ContentType="${ct}"/>`);
+    }
+    // if this dependency itself has relationships (drawings referencing media), recurse one level
+    if(!isBinary){
+      const dParts = path.split('/'); const dName = dParts.pop();
       const dRelsPath = [...dParts, '_rels', dName+'.rels'].join('/');
       const dRelsFile = srcZip.file(dRelsPath);
       if(dRelsFile){
@@ -1213,6 +1331,7 @@ async function copySheetDrawing(srcZip, outZip, sourceSheetPath, newSheetFileNam
         const dRelsDoc = new DOMParser().parseFromString(dRelsXml,'application/xml');
         for(const mrel of Array.from(dRelsDoc.getElementsByTagName('Relationship'))){
           const mTarget = mrel.getAttribute('Target');
+          if(!mTarget || /^https?:/.test(mTarget)) continue;
           const mediaPath = 'xl/' + mTarget.replace(/^(\.\.\/)+/,'');
           if(!addedParts.has(mediaPath) && srcZip.file(mediaPath)){
             const bin = await srcZip.file(mediaPath).async('uint8array');
@@ -1278,21 +1397,24 @@ async function saveEntry(){
   try{
     const selectedArea = ($('cmbArea').value || '').trim();
     await ensureDataWorkbookForArea(selectedArea);
+    if(!isWorkbookForArea(state.fileName, selectedArea)){
+      // last line of defense: never write if the open file is not this area's workbook
+      throw new Error(`Refusing to save: "${state.fileName}" is open but ${selectedArea} records belong in ${dataCandidatesForArea(selectedArea)[0]}. Nothing was written.`);
+    }
     const areaC = areaCode();
     if(areaC==='UNK'){ showBanner('Unrecognized Area of Inspection — cannot generate Inspection No.', 'warn'); $('btnSave').disabled=false; return; }
     // Next sequence = highest already in QALM for this Area+Date+Shift, +1
     const seq = nextSeq();
     const inspNo = buildInspectionNo(seq);
     const dateStr = (parseLocalInputDate($('txtDate').value) || new Date()).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});
+    const dateVal = excelDateSerial($('txtDate').value) ?? dateStr; // real Excel date, text only as a last-resort fallback
 
     const zip = await JSZip.loadAsync(state.rawBuffer);
-    const sheetMap = await getWorkbookSheetMap(zip);
+    const {sheetMap} = await getWorkbookSheetMap(zip);
     const qalmPath = sheetMap['QALM'], popPath = sheetMap['Populated Record'];
     if(!qalmPath || !popPath){ throw new Error('Could not locate QALM / Populated Record in the selected area workbook.'); }
 
     const qalmXml = await zf(zip, qalmPath);
-    const qalmDoc = new DOMParser().parseFromString(qalmXml, 'application/xml');
-    const qalmSheetData = qalmDoc.getElementsByTagName('sheetData')[0];
     // Guard the array size even when the workbook has an oversized/corrupt used-range.
     const rawLastCol = Number(state.qalmLastCol);
     const qalmLastCol = Number.isInteger(rawLastCol) && rawLastCol >= 30
@@ -1300,6 +1422,11 @@ async function saveEntry(){
       : 40;
     if(state.qalmMissingHeaders && state.qalmMissingHeaders.length){
       throw new Error('QALM Row 2 is missing required header(s): '+state.qalmMissingHeaders.join(', '));
+    }
+    if(state.qalmOptionalMissingHeaders && state.qalmOptionalMissingHeaders.length){
+      const FIELD_LABELS = {feedbackTime:'Feedback Time',checkingType:'Checking Type',shift:'Shift',project:'Project',model:'Model',waferNo:'Wafer No.',block:'Layer+Block+RB No.',rowNo:'Row No.',trayType:'Tray Type',trayNo:'Tray No.',unitNo:'Unit No.',lensMag:'Lens Magnification',channel:'Channel',barType:'Bar Type',rejectionRate:'Rejection Rate',defectCriteriaCount:'No. of Defect Criteria',productionOperator:'Prod. Operator',verifiedBy:'Verified By',processEngineer:'Process Engineer',qaInspector:'QA Inspector',qaTechnician:'QA Technician',remarks:'Remarks',timeInspected:'Time Inspected'};
+      const names = state.qalmOptionalMissingHeaders.map(k=>FIELD_LABELS[k]||k).join(', ');
+      showBanner(`QALM has no column for: ${escapeHtml(names)} — this data was NOT saved to QALM (still saved to Populated Record where applicable). Add these header(s) to QALM row 2 to stop losing them.`, 'warn');
     }
     const highestHeaderCol = Math.max(30, state.qalmHeaderRow ? state.qalmHeaderRow.length-1 : 30, ...Object.values(state.qalmHeaderMap||{}), ...Object.values(state.defectMap||{}));
     const qalmVals = new Array(Math.min(highestHeaderCol,16383)+1).fill('');
@@ -1309,7 +1436,7 @@ async function saveEntry(){
     };
     put('inspectionNo',inspNo);
     put('workWeek',$('txtWeekNo').value);
-    put('inspectionDate',dateStr);
+    put('inspectionDate',dateVal);
     put('timeInspected',$('txtTimeInspected').value);
     put('feedbackTime',$('txtFeedbackTime').value);
     put('area',$('cmbArea').value);
@@ -1349,12 +1476,10 @@ async function saveEntry(){
         if(colIdx0 !== undefined) qalmVals[colIdx0] = qty;
       }
     }
-    appendDataRow(qalmDoc, qalmSheetData, qalmVals);
-    zip.file(qalmPath, new XMLSerializer().serializeToString(qalmDoc));
+    const {xml: qalmXmlOut} = spliceAppendRows(qalmXml, [qalmVals]);
+    zip.file(qalmPath, qalmXmlOut);
 
     const popXml = await zf(zip, popPath);
-    const popDoc = new DOMParser().parseFromString(popXml, 'application/xml');
-    const popSheetData = popDoc.getElementsByTagName('sheetData')[0];
     const barType = ($('cmbBarType').value||'').toUpperCase().trim();
     let totalSlider = 0;
     if(barType==='MIDDLE BAR') totalSlider = 75;
@@ -1362,7 +1487,7 @@ async function saveEntry(){
     else totalSlider = parseInt($('txtInspectedQty').value,10)||0;
 
     const baseCols = () => ([
-      inspNo, $('txtWeekNo').value, dateStr, $('txtTimeInspected').value, $('cmbArea').value,
+      inspNo, $('txtWeekNo').value, dateVal, $('txtTimeInspected').value, $('cmbArea').value,
       $('cmbProcess').value, $('cmbTypeChecking').value, $('cmbShift').value, $('cmbProject').value,
       $('cmbModel').value, $('cmbWaferNo').value, $('txtBlock').value, $('txtRow').value,
       $('cmbTrayType').value, $('txtTrayNo').value, $('txtUnitNo').value, $('cmbChannel').value,
@@ -1394,12 +1519,12 @@ async function saveEntry(){
       }
       for(let s=1;s<=totalSlider;s++) popRows.push([...baseCols(), String(s), resultMap[s]]);
     }
-    for(const rowVals of popRows) appendDataRow(popDoc, popSheetData, rowVals);
-    zip.file(popPath, new XMLSerializer().serializeToString(popDoc));
+    const {xml: popXmlOut} = spliceAppendRows(popXml, popRows);
+    zip.file(popPath, popXmlOut);
 
     // Use Uint8Array, not a normal JavaScript Array. The connected workbook is large,
     // and type:'array' can throw RangeError: Invalid array length during ZIP generation.
-    const out = await zip.generateAsync({type:'uint8array'});
+    const out = await zip.generateAsync({type:'uint8array', compression:'DEFLATE', compressionOptions:{level:6}});
     const writable = await state.handle.createWritable();
     await writable.write(out);
     await writable.close();
@@ -1412,7 +1537,7 @@ async function saveEntry(){
     state.lastInspectionNo = inspNo;
     savePersonnelMemory();
     clearDraft();
-    showBanner(`Saved ${inspNo} — ${totalSlider} slider record(s) written. If this inspection has defects, use <strong>Alert QA</strong> below to generate the FA &amp; Mapping draft before New Entry.`, 'ok');
+    showBanner(`Saved ${inspNo} to <strong>${escapeHtml(state.fileName)}</strong> — ${totalSlider} slider record(s) written. If this inspection has defects, use <strong>Alert QA</strong> below to generate the FA &amp; Mapping draft before New Entry.`, 'ok');
     $('mappingType').disabled = false;
     $('btnGenFA').disabled = false;
     $('btnGenFA').removeAttribute('title');
@@ -1542,7 +1667,8 @@ function renderFAPreview(selectedIndex){
   const summary=[['Tray Type',$('cmbTrayType').value],['Tray No.',$('txtTrayNo').value],['Middle Bar (Qty)',barU==='MIDDLE BAR'?totalSlider:''],['Long Bar (Qty)',barU==='LONG BAR'?totalSlider:''],['Total Slider Quantity',totalSlider],['Total Defected Slider',totalDef],['Total Rejection Rate (%)','#DIV/0!']];
   summary.forEach((r,i)=>{const y=4+i;h+=faCell('xl-summary-label',r[0],'10 / 12',y)+faCell('xl-summary-colon',':','12',y)+faCell('xl-summary-value',String(r[1]),'13',y);});
   h+=faCell('xl-section','Defect Information','1 / 14','11');
-  const d1=[['Rowbar No.',($('cmbWaferNo').value||'')+($('txtBlock').value||'')],['Bar Type',$('cmbBarType').value],['Unit No.',$('txtUnitNo').value],['Channel',$('cmbChannel').value]];
+  const rowbarNoDisplay = [$('cmbWaferNo').value, $('txtBlock').value].filter(Boolean).join(' ');
+  const d1=[['Rowbar No.',rowbarNoDisplay],['Bar Type',$('cmbBarType').value],['Unit No.',$('txtUnitNo').value],['Channel',$('cmbChannel').value]];
   d1.forEach((r,i)=>{const c=1+i*3;h+=faCell('xl-label',r[0],String(c),12)+faCell('xl-colon',':',String(c+1),12)+faCell('xl-value',r[1],i===3?'12 / 14':String(c+2),12);});
   h+=faCell('xl-label','Defect Code','1',13)+faCell('xl-colon',':','2',13)+faCell('xl-value',entry.code,'3',13)+faCell('xl-label','Defect Description','4',13)+faCell('xl-colon',':','5',13)+faCell('xl-value',entry.desc,'6 / 10',13)+faCell('xl-label','Defect Qty.','10 / 12',13)+faCell('xl-colon',':','12',13)+faCell('xl-value',String(entry.qty),'13',13);
   h+=faCell('xl-good','GOOD SAMPLE','1 / 7','14')+faCell('xl-actual','ACTUAL SAMPLE','7 / 14','14');
@@ -1571,7 +1697,7 @@ function collectValidMapRows(mapType){
 }
 function sliderGrid(start,end,mapBySlider,colors){
   let h=`<div class="slider-range" style="grid-template-columns:repeat(${end-start+1},minmax(22px,1fr))">`;
-  for(let n=start;n<=end;n++){const item=mapBySlider[n];const bg=item?colors[item.code]:'#c6e0b4';h+=`<div class="slider-box" style="background:${bg}"><span class="slider-num">${n}</span>${item?escapeHtml(item.code):''}</div>`;}
+  for(let n=start;n<=end;n++){const item=mapBySlider[n];const bg=item?colors[item.code]:'#c6e0b4';h+=`<div class="slider-box" style="background:${bg}" title="Slider ${n}${item?': '+escapeHtml(item.code):''}"><span class="slider-num">${n}</span>${item?`<span class="slider-code">${escapeHtml(item.code)}</span>`:''}</div>`;}
   return h+'</div>';
 }
 function renderMapPreview(){
@@ -1579,13 +1705,13 @@ function renderMapPreview(){
   if(collectFaEntries().length===0){wrap.innerHTML='<p class="preview-empty">No defect codes selected.</p>';return;}
   if(mapType==='SLIDER'){
     let h='<div class="preview-stage"><div class="preview-scale"><div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>OCR Number</th><th>Row</th><th>Col</th></tr></thead><tbody>';
-    rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td><td></td><td></td></tr>`);h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">Slider Level</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div><p class="map-slider-note">Row No. and Column No. remain for manual entry in the exported mapping sheet.</p></div></div></div></div></div>';wrap.innerHTML=h;applyPreviewZoom('previewMap');return;
+    rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td><td></td><td></td></tr>`);h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">Slider Level</div><div>:</div><div class="map-rowbar">'+escapeHtml([$('cmbWaferNo').value,$('txtBlock').value].filter(Boolean).join(' '))+'</div></div><p class="map-slider-note">Row No. and Column No. remain for manual entry in the exported mapping sheet.</p></div></div></div></div></div>';wrap.innerHTML=h;applyPreviewZoom('previewMap');return;
   }
   const max=mapType==='MB'?75:90, split=mapType==='LB'?45:max, title=mapType==='MB'?'Middle Bar':'Long Bar';
   const palette=['#ff1a1a','#ffc000','#00b0f0','#92d050','#7030a0','#ff66cc']; const colors={}; collectFaEntries().forEach((e,i)=>colors[e.code]=palette[i%palette.length]);
   const mapBy={}; rows.forEach(x=>mapBy[x.num]=x);
   let h='<div class="preview-stage"><div class="preview-scale"><div class="excel-sheet map-sheet"><div class="map-layout"><div class="map-list"><table><thead><tr><th>No.</th><th>Defect<br>Code</th><th>Slider<br>Number:</th></tr></thead><tbody>';
-  rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td></tr>`); for(let i=rows.length;i<20;i++)h+='<tr><td>&nbsp;</td><td></td><td></td></tr>'; h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">'+title+'</div><div>:</div><div class="map-rowbar">'+escapeHtml(($('cmbWaferNo').value||'')+($('txtBlock').value||''))+'</div></div>';
+  rows.forEach((x,i)=>h+=`<tr><td>${i+1}</td><td>${escapeHtml(x.code)}</td><td>${escapeHtml(x.val)}</td></tr>`); for(let i=rows.length;i<20;i++)h+='<tr><td>&nbsp;</td><td></td><td></td></tr>'; h+='</tbody></table></div><div class="map-canvas"><div class="map-head"><div class="map-bar-title">'+title+'</div><div>:</div><div class="map-rowbar">'+escapeHtml([$('cmbWaferNo').value,$('txtBlock').value].filter(Boolean).join(' '))+'</div></div>';
   h+=sliderGrid(1,split,mapBy,colors); if(split<max){h+='<div class="map-turn"></div>'+sliderGrid(split+1,max,mapBy,colors);} h+='<div class="map-legend"><strong style="grid-column:1/3;margin-bottom:5px">Legend;</strong><span class="legend-swatch" style="background:#c6e0b4"></span><span>Sampling Size</span>'; Object.keys(colors).forEach(code=>h+=`<span class="legend-swatch" style="background:${colors[code]}"></span><span>${escapeHtml(code)}</span>`); h+='</div></div></div></div></div></div>';wrap.innerHTML=h;applyPreviewZoom('previewMap');
 }
 function applyPreviewZoom(paneId){
@@ -1595,7 +1721,7 @@ function applyPreviewZoom(paneId){
   const sheet=pane.querySelector('.excel-sheet');
   if(!stage||!scaleEl||!sheet) return;
   const mode=$('previewZoom') ? $('previewZoom').value : 'fit';
-  const naturalWidth=sheet.offsetWidth || parseFloat(getComputedStyle(sheet).width) || 1;
+  const naturalWidth=Math.max(sheet.offsetWidth, sheet.scrollWidth) || parseFloat(getComputedStyle(sheet).width) || 1; // scrollWidth guards against grid content wider than the declared box
   const available=Math.max(300,pane.clientWidth-22);
   let scale=mode==='fit' ? Math.min(1,available/naturalWidth) : Number(mode)||1;
   scaleEl.style.transform=`scale(${scale})`;
@@ -1753,7 +1879,7 @@ async function addToReference(){
   showLoading('Updating REFERENCE...');
   try{
     const zip = await JSZip.loadAsync(state.refRawBuffer);
-    const sheetMap = await getWorkbookSheetMap(zip);
+    const {sheetMap} = await getWorkbookSheetMap(zip);
     const refPath = sheetMap['REFERENCE'];
     if(!refPath) throw new Error('REFERENCE sheet not found.');
     const refXml = await zf(zip, refPath);
@@ -1773,7 +1899,7 @@ async function addToReference(){
       setCellValue(refDoc, sheetData, numToColLetter(meta.descCol)+newRow, desc);
     }
     zip.file(refPath, new XMLSerializer().serializeToString(refDoc));
-    const out = await zip.generateAsync({type:'uint8array'});
+    const out = await zip.generateAsync({type:'uint8array', compression:'DEFLATE', compressionOptions:{level:6}});
     const writable = await state.refHandle.createWritable();
     await writable.write(out);
     await writable.close();
@@ -1857,7 +1983,7 @@ async function generateFAMapping(){
 
   try{
     const srcZip = await JSZip.loadAsync(state.refRawBuffer);
-    const sheetMap = await getWorkbookSheetMap(srcZip);
+    const {sheetMap, printDefinedNames} = await getWorkbookSheetMap(srcZip);
     const faPath = sheetMap['FA Format'];
     const mapPath = sheetMap[templateName];
     if(!faPath || !mapPath){ hideLoading(); $('faStatus').textContent = `Missing template sheet "${templateName}" or "FA Format".`; return; }
@@ -2017,23 +2143,33 @@ async function generateFAMapping(){
     const contentTypesOverrides = [];
     const wbRelEntries = [];
     const wbSheetEntries = [];
+    const definedNameEntries = [];
     const addedParts = new Set();
     let sheetCounter = 1, ridCounter = 1;
 
-    const addSheet = async (name, xml, sourcePath) => {
+    const addSheet = async (name, xml, sourcePath, originalName) => {
       const fileName = `sheet${sheetCounter}.xml`;
       const path = `xl/worksheets/${fileName}`;
+      const newIndex = sheetCounter - 1; // 0-based, matches localSheetId semantics
       outZip.file(path, xml);
       contentTypesOverrides.push(`<Override PartName="/${path}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`);
       const rid = 'rId'+ridCounter++;
       wbRelEntries.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/${fileName}"/>`);
       wbSheetEntries.push(`<sheet name="${escapeXml(name)}" sheetId="${sheetCounter}" r:id="${rid}"/>`);
-      await copySheetDrawing(srcZip, outZip, sourcePath, fileName, addedParts, contentTypesOverrides);
+      await copySheetDependencies(srcZip, outZip, sourcePath, fileName, addedParts, contentTypesOverrides);
+      // Preserve Print Area / Print Titles from the original template sheet, remapped to
+      // this copy's new sheet name and index — otherwise printing the export loses the
+      // original template's print setup entirely.
+      const printNames = printDefinedNames[originalName] || [];
+      for(const pn of printNames){
+        const remapped = remapDefinedNameFormula(pn.value, originalName, name);
+        definedNameEntries.push(`<definedName name="${escapeXml(pn.name)}" localSheetId="${newIndex}">${escapeXml(remapped)}</definedName>`);
+      }
       sheetCounter++;
     };
 
-    for(const s of faSheetXmls) await addSheet(s.name, s.xml, faPath);
-    await addSheet(mapName, mapXmlOut, mapPath);
+    for(const s of faSheetXmls) await addSheet(s.name, s.xml, faPath, 'FA Format');
+    await addSheet(mapName, mapXmlOut, mapPath, templateName);
 
     outZip.file('xl/styles.xml', stylesXmlOut);
     contentTypesOverrides.push('<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>');
@@ -2050,7 +2186,8 @@ async function generateFAMapping(){
       wbRelEntries.push(`<Relationship Id="rId${ridCounter++}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>`);
     }
 
-    const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${wbSheetEntries.join('')}</sheets></workbook>`;
+    const definedNamesXml = definedNameEntries.length ? `<definedNames>${definedNameEntries.join('')}</definedNames>` : '';
+    const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${wbSheetEntries.join('')}</sheets>${definedNamesXml}</workbook>`;
     outZip.file('xl/workbook.xml', workbookXml);
     contentTypesOverrides.push('<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>');
     outZip.file('xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wbRelEntries.join('')}</Relationships>`);
@@ -2064,7 +2201,7 @@ async function generateFAMapping(){
     outZip.file('docProps/app.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>PhotoVac Data Entry</Application></Properties>`);
 
     const fileName = `FA_${cleanFileName(inspNo)}_${codesForFile.join('_')}.xlsx`;
-    const out = await outZip.generateAsync({type:'uint8array'});
+    const out = await outZip.generateAsync({type:'uint8array', compression:'DEFLATE', compressionOptions:{level:6}});
     if(!state.failureAlertHandle) throw new Error('Failure Alert folder was not found inside the Main Folder.');
     const faFileHandle = await state.failureAlertHandle.getFileHandle(fileName, {create:true});
     const writable = await faFileHandle.createWritable();
@@ -2107,10 +2244,19 @@ function dataCandidatesForArea(area){
   return DATA_FILE_CANDIDATES[key] || [`${String(area||'').trim()}.xlsx`, `${String(area||'').trim()}.xlsm`];
 }
 
+// Routing is enforced by WHICH FILE is actually open, never by a label copied from the form —
+// otherwise picking another area's workbook in the header dropdown would silently receive this area's records.
+function isWorkbookForArea(fileName, area){
+  const f = String(fileName||'').trim().toLowerCase();
+  return !!f && dataCandidatesForArea(area).some(c => c.toLowerCase() === f);
+}
+
 async function ensureDataWorkbookForArea(area, force=false){
   const key = String(area||'').trim().toUpperCase();
   if(!key) throw new Error('Select an Area of Inspection first.');
-  if(!force && state.loadedArea === key && state.handle && state.rawBuffer) return;
+  const previousFile = state.fileName;
+  const openedFileIsWrong = !!state.handle && !isWorkbookForArea(state.fileName, key);
+  if(!force && !openedFileIsWrong && state.loadedArea === key && state.handle && state.rawBuffer) return;
 
   const handle = await getFileHandleByCandidates(state.rootHandle, dataCandidatesForArea(key));
   if(!handle) throw new Error(`No data workbook was found for ${area}. Expected: ${dataCandidatesForArea(key).join(' or ')}`);
@@ -2133,6 +2279,13 @@ async function ensureDataWorkbookForArea(area, force=false){
   buildDefectMap();
   updateComputedInspectionNo();
   $('fileStatus').textContent = `Reference.xlsx + ${file.name}`;
+  if(openedFileIsWrong){
+    // keep the header dropdown truthful and tell the user their selection was overridden
+    const sel = $('dataWorkbookSelect');
+    const opt = sel && [...sel.options].find(o => o.value.toLowerCase() === file.name.toLowerCase());
+    if(opt) sel.value = opt.value;
+    showBanner(`"${previousFile}" is not the workbook for ${area}. Routed to <strong>${escapeHtml(file.name)}</strong> instead.`, 'warn');
+  }
 }
 
 async function openFile(){
