@@ -291,6 +291,7 @@
   .xl-summary-label{background:#2f75b5;color:#fff;}
   .xl-summary-colon{background:#2f75b5;color:#fff;justify-content:center;}
   .xl-summary-value{background:#ddebf7;justify-content:center;}
+  .xl-manual-value{background:#fffef0;justify-content:center;border:1px dashed #b0a020!important;color:#8a7a10;font-style:italic;}
   .xl-good{background:#00b050;color:#000;font-weight:800;justify-content:center;font-size:17px;letter-spacing:.08em;border:2px solid #111;}
   .xl-actual{background:#c00000;color:#000;font-weight:800;justify-content:center;font-size:17px;letter-spacing:.08em;border:2px solid #111;}
   .xl-sample{height:390px;background:#fff;border:2px solid #111;}
@@ -1397,7 +1398,7 @@ async function saveEntry(){
   try{
     const selectedArea = ($('cmbArea').value || '').trim();
     await ensureDataWorkbookForArea(selectedArea);
-    if(!isWorkbookForArea(state.fileName, selectedArea)){
+    if(isAreaMismatch(selectedArea)){
       // last line of defense: never write if the open file is not this area's workbook
       throw new Error(`Refusing to save: "${state.fileName}" is open but ${selectedArea} records belong in ${dataCandidatesForArea(selectedArea)[0]}. Nothing was written.`);
     }
@@ -1664,8 +1665,8 @@ function renderFAPreview(selectedIndex){
     ['Remarks',$('txtRemarks').value,'','','','']
   ];
   left.forEach((r,i)=>{const y=4+i;h+=faCell('xl-label',r[0],'1',y)+faCell('xl-colon',':','2',y)+faCell('xl-value',r[1],r[0]==='Inspection Process'||r[0]==='Remarks'?'3 / 7':'3 / 4',y);if(r[2])h+=faCell('xl-label',r[2],'4',y)+faCell('xl-colon',':','5',y)+faCell('xl-value',r[3],'6 / 7',y);if(r[4])h+=faCell('xl-label',r[4],'7',y)+faCell('xl-colon',':','8',y)+faCell('xl-value',r[5],'9 / 10',y);});
-  const summary=[['Tray Type',$('cmbTrayType').value],['Tray No.',$('txtTrayNo').value],['Middle Bar (Qty)',barU==='MIDDLE BAR'?totalSlider:''],['Long Bar (Qty)',barU==='LONG BAR'?totalSlider:''],['Total Slider Quantity',totalSlider],['Total Defected Slider',totalDef],['Total Rejection Rate (%)','#DIV/0!']];
-  summary.forEach((r,i)=>{const y=4+i;h+=faCell('xl-summary-label',r[0],'10 / 12',y)+faCell('xl-summary-colon',':','12',y)+faCell('xl-summary-value',String(r[1]),'13',y);});
+  const summary=[['Tray Type',$('cmbTrayType').value],['Tray No.',$('txtTrayNo').value],['Middle Bar (Qty)','','manual'],['Long Bar (Qty)','','manual'],['Total Slider Quantity',totalSlider],['Total Defected Slider',totalDef],['Total Rejection Rate (%)','#DIV/0!']];
+  summary.forEach((r,i)=>{const y=4+i;const cls=r[2]==='manual'?'xl-manual-value':'xl-summary-value';const display=r[2]==='manual'?'(fill in Excel)':String(r[1]);h+=faCell('xl-summary-label',r[0],'10 / 12',y)+faCell('xl-summary-colon',':','12',y)+faCell(cls,display,'13',y);});
   h+=faCell('xl-section','Defect Information','1 / 14','11');
   const rowbarNoDisplay = [$('cmbWaferNo').value, $('txtBlock').value].filter(Boolean).join(' ');
   const d1=[['Rowbar No.',rowbarNoDisplay],['Bar Type',$('cmbBarType').value],['Unit No.',$('txtUnitNo').value],['Channel',$('cmbChannel').value]];
@@ -1750,6 +1751,22 @@ async function discoverDataWorkbooks(){
   for(const name of names){ const opt=document.createElement('option'); opt.value=name; opt.textContent=name; select.appendChild(opt); }
   select.disabled=false;
 }
+async function verifyAndParseDataWorkbook(buf, fileName){
+  // Existence check via the raw zip (workbook.xml only) is cheap — confirms both sheets are
+  // really there without asking SheetJS to parse either one.
+  const zipCheck = await JSZip.loadAsync(buf.slice(0));
+  const {sheetMap} = await getWorkbookSheetMap(zipCheck);
+  for(const need of ['QALM','Populated Record']){
+    if(!sheetMap[need]) throw new Error(`Sheet "${need}" was not found in ${fileName}.`);
+  }
+  // Only ask SheetJS to actually parse QALM (needed for header/defect-column mapping).
+  // Populated Record can be 90k+ rows — nothing in this app ever reads it through SheetJS
+  // (appends go through the raw-XML splice path), so parsing it here was pure wasted time.
+  const wb = XLSX.read(buf, {type:'array', bookVBA:true, cellDates:false, cellStyles:true, sheets:['QALM']});
+  if(!wb.Sheets['QALM']) throw new Error(`Sheet "QALM" was not found in ${fileName}.`);
+  return wb;
+}
+
 async function connectSelectedDataWorkbook(fileName){
   if(!fileName){
     state.handle=null; state.fileName=''; state.rawBuffer=null; state.wb=null; state.loadedArea='';
@@ -1761,8 +1778,7 @@ async function connectSelectedDataWorkbook(fileName){
   if(perm!=='granted') throw new Error(`Write permission was not granted for ${fileName}.`);
   showLoading(`Loading ${fileName}...`);
   const file=await handle.getFile(); const buf=await file.arrayBuffer();
-  const wb=XLSX.read(buf,{type:'array',bookVBA:true,cellDates:false,cellStyles:true});
-  for(const need of ['QALM','Populated Record']) if(!wb.Sheets[need]) throw new Error(`Sheet "${need}" was not found in ${fileName}.`);
+  const wb=await verifyAndParseDataWorkbook(buf, fileName);
   state.handle=handle; state.fileName=fileName; state.ext=/\.xlsm$/i.test(fileName)?'xlsm':'xlsx'; state.rawBuffer=buf.slice(0); state.wb=wb; state.loadedArea=($('cmbArea').value||'MANUAL').toUpperCase();
   buildDefectMap(); updateComputedInspectionNo();
   $('fileStatus').textContent=`Reference.xlsx + ${fileName}`;
@@ -2244,18 +2260,33 @@ function dataCandidatesForArea(area){
   return DATA_FILE_CANDIDATES[key] || [`${String(area||'').trim()}.xlsx`, `${String(area||'').trim()}.xlsm`];
 }
 
-// Routing is enforced by WHICH FILE is actually open, never by a label copied from the form —
-// otherwise picking another area's workbook in the header dropdown would silently receive this area's records.
-function isWorkbookForArea(fileName, area){
-  const f = String(fileName||'').trim().toLowerCase();
-  return !!f && dataCandidatesForArea(area).some(c => c.toLowerCase() === f);
+// Two independent signals, both required to be POSITIVE evidence before ever blocking a save —
+// an unrecognized/custom filename is never treated as "wrong" on its own, since the app also
+// supports manually selecting any file via the Data Workbook dropdown (connectSelectedDataWorkbook).
+function isAreaMismatch(area){
+  const key = String(area||'').trim().toUpperCase();
+  if(!key) return false;
+  // Signal 1: this file was explicitly loaded/selected for a DIFFERENT, known area and the
+  // Area of Inspection dropdown has since changed without reconnecting.
+  const loaded = String(state.loadedArea||'').trim().toUpperCase();
+  if(loaded && loaded!=='MANUAL' && loaded!==key) return true;
+  // Signal 2: the open filename exactly matches ANOTHER area's known naming pattern (e.g.
+  // PQC2.xlsx is open while PHOTOVAC is selected) — a genuine mix-up, not just an unfamiliar name.
+  const f = String(state.fileName||'').trim().toLowerCase();
+  if(f && !dataCandidatesForArea(key).some(n=>n.toLowerCase()===f)){
+    for(const [otherArea, names] of Object.entries(DATA_FILE_CANDIDATES)){
+      if(otherArea===key) continue;
+      if(names.some(n=>n.toLowerCase()===f)) return true;
+    }
+  }
+  return false;
 }
 
 async function ensureDataWorkbookForArea(area, force=false){
   const key = String(area||'').trim().toUpperCase();
   if(!key) throw new Error('Select an Area of Inspection first.');
   const previousFile = state.fileName;
-  const openedFileIsWrong = !!state.handle && !isWorkbookForArea(state.fileName, key);
+  const openedFileIsWrong = !!state.handle && isAreaMismatch(key);
   if(!force && !openedFileIsWrong && state.loadedArea === key && state.handle && state.rawBuffer) return;
 
   const handle = await getFileHandleByCandidates(state.rootHandle, dataCandidatesForArea(key));
@@ -2266,10 +2297,7 @@ async function ensureDataWorkbookForArea(area, force=false){
   showLoading(`Loading ${handle.name}...`);
   const file = await handle.getFile();
   const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, {type:'array', bookVBA:true, cellDates:false, cellStyles:true});
-  for(const need of ['QALM','Populated Record']){
-    if(!wb.Sheets[need]) throw new Error(`Sheet "${need}" was not found in ${file.name}.`);
-  }
+  const wb = await verifyAndParseDataWorkbook(buf, file.name);
   state.handle = handle;
   state.fileName = file.name;
   state.ext = file.name.toLowerCase().endsWith('.xlsm') ? 'xlsm' : 'xlsx';
