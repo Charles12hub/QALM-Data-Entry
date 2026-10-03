@@ -1665,8 +1665,8 @@ function renderFAPreview(selectedIndex){
     ['Remarks',$('txtRemarks').value,'','','','']
   ];
   left.forEach((r,i)=>{const y=4+i;h+=faCell('xl-label',r[0],'1',y)+faCell('xl-colon',':','2',y)+faCell('xl-value',r[1],r[0]==='Inspection Process'||r[0]==='Remarks'?'3 / 7':'3 / 4',y);if(r[2])h+=faCell('xl-label',r[2],'4',y)+faCell('xl-colon',':','5',y)+faCell('xl-value',r[3],'6 / 7',y);if(r[4])h+=faCell('xl-label',r[4],'7',y)+faCell('xl-colon',':','8',y)+faCell('xl-value',r[5],'9 / 10',y);});
-  const summary=[['Tray Type',$('cmbTrayType').value],['Tray No.',$('txtTrayNo').value],['Middle Bar (Qty)','','manual'],['Long Bar (Qty)','','manual'],['Total Slider Quantity',totalSlider],['Total Defected Slider',totalDef],['Total Rejection Rate (%)','#DIV/0!']];
-  summary.forEach((r,i)=>{const y=4+i;const cls=r[2]==='manual'?'xl-manual-value':'xl-summary-value';const display=r[2]==='manual'?'(fill in Excel)':String(r[1]);h+=faCell('xl-summary-label',r[0],'10 / 12',y)+faCell('xl-summary-colon',':','12',y)+faCell(cls,display,'13',y);});
+  const summary=[['Tray Type',$('cmbTrayType').value],['Tray No.',$('txtTrayNo').value],['Middle Bar (Qty)','','manual'],['Long Bar (Qty)','','manual'],['Total Slider Quantity','','formula'],['Total Defected Slider','','manual'],['Total Rejection Rate (%)','','formula']];
+  summary.forEach((r,i)=>{const y=4+i;const cls=r[2]?'xl-manual-value':'xl-summary-value';const display=r[2]==='manual'?'(fill in Excel)':r[2]==='formula'?'(auto in Excel)':String(r[1]);h+=faCell('xl-summary-label',r[0],'10 / 12',y)+faCell('xl-summary-colon',':','12',y)+faCell(cls,display,'13',y);});
   h+=faCell('xl-section','Defect Information','1 / 14','11');
   const rowbarNoDisplay = [$('cmbWaferNo').value, $('txtBlock').value].filter(Boolean).join(' ');
   const d1=[['Rowbar No.',rowbarNoDisplay],['Bar Type',$('cmbBarType').value],['Unit No.',$('txtUnitNo').value],['Channel',$('cmbChannel').value]];
@@ -1964,29 +1964,6 @@ function cleanFileName(s){
   return (s||'').trim().replace(/[\/\\:*?"<>|]/g,'_');
 }
 
-/** Find a cell whose text matches regex and write value into the next non-empty-looking data cell to its right (or +2 cols). */
-function fillBesideLabel(doc, sheetData, labelRe, value){
-  if(value===undefined || value===null || value==='') return;
-  for(const cell of Array.from(sheetData.querySelectorAll('c'))){
-    const addr = cell.getAttribute('r');
-    if(!addr) continue;
-    let text = '';
-    const tNodes = cell.getElementsByTagName('t');
-    if(tNodes.length) text = tNodes[0].textContent || '';
-    else {
-      const v = cell.getElementsByTagName('v')[0];
-      if(v) text = v.textContent || '';
-    }
-    if(!labelRe.test(String(text))) continue;
-    const m = addr.match(/^([A-Z]+)(\d+)$/);
-    if(!m) continue;
-    const colNum = colLetterToNum(m[1]);
-    const row = m[2];
-    // Prefer two columns to the right (label | : | value pattern)
-    setCellValue(doc, sheetData, numToColLetter(colNum+2)+row, value);
-    return;
-  }
-}
 
 async function generateFAMapping(){
   if(!state.lastInspectionNo){ $('faStatus').textContent = 'Record Data first.'; return; }
@@ -2076,19 +2053,13 @@ async function generateFAMapping(){
       set('L12',$('cmbChannel').value);
       set('C13',entry.code); set('F13',entry.desc); set('L13',entry.qty);
 
-      // Inspection summary (same values on every FA sheet for this inspection)
-      const barU = ($('cmbBarType').value||'').toUpperCase().trim();
-      const inspQ = parseInt($('txtInspectedQty').value,10)||0;
-      const totalDef = faEntries.reduce((s,e)=>s+e.qty,0);
-      const totalSlider = barU==='MIDDLE BAR' ? 75 : barU==='LONG BAR' ? 90 : inspQ;
-      const mbQ = barU==='MIDDLE BAR' ? totalSlider : 0;
-      const lbQ = barU==='LONG BAR' ? totalSlider : 0;
-      // Fill by scanning label cells (works even if layout shifts slightly)
-      fillBesideLabel(doc, sheetData, /middle\s*bar/i, mbQ);
-      fillBesideLabel(doc, sheetData, /long\s*bar/i, lbQ);
-      fillBesideLabel(doc, sheetData, /total\s*slider/i, totalSlider);
-      fillBesideLabel(doc, sheetData, /total\s*defect/i, totalDef);
-      fillBesideLabel(doc, sheetData, /rejection\s*rate/i, $('txtRejectRate').value);
+      // Inspection Summary (Middle Bar/Long Bar/Total Slider Qty/Total Rejection Rate) is left
+      // completely untouched. In the real template, Middle Bar/Long Bar (L6/L7) are genuine
+      // manual-entry cells with no formula, and Total Slider Qty/Total Rejection Rate are LIVE
+      // FORMULAS that read L6/L7 (e.g. Total Slider Qty = SUM of Middle/Long Bar formulas,
+      // Rejection Rate = Total Defected / Total Slider Qty) — writing a static number into any
+      // of these would silently strip out the formula. The original VBA never touched this
+      // block either; it recalculates on its own once the inspector fills in L6/L7 by hand.
 
       let name = safeSheetName(entry.code), dup=1;
       while(usedNames.some(n=>n.toLowerCase()===name.toLowerCase())){ dup++; name = safeSheetName(entry.code.slice(0,27)+'_'+dup); }
@@ -2179,6 +2150,7 @@ async function generateFAMapping(){
       const printNames = printDefinedNames[originalName] || [];
       for(const pn of printNames){
         const remapped = remapDefinedNameFormula(pn.value, originalName, name);
+        if(!remapped || !remapped.trim()) continue; // source had no real print area set — an empty <definedName> is invalid and breaks Excel
         definedNameEntries.push(`<definedName name="${escapeXml(pn.name)}" localSheetId="${newIndex}">${escapeXml(remapped)}</definedName>`);
       }
       sheetCounter++;
